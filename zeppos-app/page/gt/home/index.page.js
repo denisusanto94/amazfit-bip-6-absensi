@@ -18,7 +18,14 @@ Page({
     groupGPS: null,
     groupInput: null,
     groupDashboard: null,
-    txtInput: null
+    txtInput: null,
+    checkedIn: false,
+    groupQR: null,
+    qrWidget: null,
+    btnCheckIn: null,
+    btnShowQR: null,
+    checkInDate: "",
+    checkInTime: ""
   },
 
   onInit() {
@@ -35,6 +42,9 @@ Page({
 
     // 3. Dashboard Screen
     this.createDashboardScreen();
+
+    // 4. QR Screen
+    this.createQRScreen();
 
     // Initial State: GPS Scanning
     this.showScreen("GPS");
@@ -114,6 +124,47 @@ Page({
     });
   },
 
+  createQRScreen() {
+    this.state.groupQR = hmUI.createWidget(hmUI.widget.GROUP, {
+      x: 0, y: 0, w: DEVICE_WIDTH, h: DEVICE_HEIGHT
+    });
+
+    const bgSize = px(300);
+    this.state.groupQR.createWidget(hmUI.widget.FILL_RECT, {
+      x: (DEVICE_WIDTH - bgSize) / 2,
+      y: px(30),
+      w: bgSize,
+      h: bgSize,
+      color: 0xffffff,
+      radius: px(20)
+    });
+
+    const qrSize = px(260);
+    // Initial placeholder, will be recreated in generateQR
+    this.state.qrWidget = this.state.groupQR.createWidget(hmUI.widget.QR_CODE, {
+      x: (DEVICE_WIDTH - qrSize) / 2,
+      y: px(50),
+      w: qrSize,
+      h: qrSize,
+      content: "0"
+    });
+
+    this.state.groupQR.createWidget(hmUI.widget.BUTTON, {
+      x: px(80),
+      y: DEVICE_HEIGHT - px(80),
+      w: DEVICE_WIDTH - px(160),
+      h: px(60),
+      text: "BACK",
+      color: 0xffffff,
+      normal_color: 0x333333,
+      press_color: 0x555555,
+      radius: px(30),
+      click_func: () => {
+        this.showScreen("DASHBOARD");
+      }
+    });
+  },
+
   createDashboardScreen() {
     this.state.groupDashboard = hmUI.createWidget(hmUI.widget.GROUP, {
       x: 0, y: 0, w: DEVICE_WIDTH, h: DEVICE_HEIGHT
@@ -122,16 +173,14 @@ Page({
     const labelX = px(25);
     const startY = px(20);
 
-    // Time (24H)
     this.state.lblTime = this.state.groupDashboard.createWidget(hmUI.widget.TEXT, {
       x: labelX, y: startY, w: DEVICE_WIDTH - labelX * 2, h: px(35),
       text: "--:--:--",
       text_size: px(26),
       color: 0xffffff,
-      align_h: hmUI.align.CENTER_H // Time looks best centered
+      align_h: hmUI.align.CENTER_H
     });
 
-    // Date (DD/MM/YYYY)
     this.state.lblDate = this.state.groupDashboard.createWidget(hmUI.widget.TEXT, {
       x: labelX, y: startY + px(35), w: DEVICE_WIDTH - labelX * 2, h: px(35),
       text: "--/--/----",
@@ -140,10 +189,9 @@ Page({
       align_h: hmUI.align.CENTER_H
     });
 
-    const infoY = startY + px(80); // Start user info lower
-    const gap = px(35); // Reduce gap slightly to fit everything
+    const infoY = startY + px(80);
+    const gap = px(35);
 
-    // Name
     this.state.lblName = this.state.groupDashboard.createWidget(hmUI.widget.TEXT, {
       x: labelX, y: infoY, w: DEVICE_WIDTH - labelX * 2, h: px(35),
       text: "User: -",
@@ -152,7 +200,6 @@ Page({
       align_h: hmUI.align.LEFT
     });
 
-    // Latitude
     this.state.lblLat = this.state.groupDashboard.createWidget(hmUI.widget.TEXT, {
       x: labelX, y: infoY + gap, w: DEVICE_WIDTH - labelX * 2, h: px(35),
       text: "Latitude: -",
@@ -161,7 +208,6 @@ Page({
       align_h: hmUI.align.LEFT
     });
 
-    // Longitude
     this.state.lblLon = this.state.groupDashboard.createWidget(hmUI.widget.TEXT, {
       x: labelX, y: infoY + gap * 2, w: DEVICE_WIDTH - labelX * 2, h: px(35),
       text: "Longitude: -",
@@ -175,8 +221,8 @@ Page({
     const btnWidth = (DEVICE_WIDTH - btnMargin * 2 - btnGap) / 2;
     const btnY = infoY + gap * 3.5;
 
-    // Check In Button (Left)
-    this.state.groupDashboard.createWidget(hmUI.widget.BUTTON, {
+    // 1. Check In Button (Initially Visible)
+    this.state.btnCheckIn = this.state.groupDashboard.createWidget(hmUI.widget.BUTTON, {
       x: btnMargin,
       y: btnY,
       w: btnWidth,
@@ -191,7 +237,24 @@ Page({
       }
     });
 
-    // Check Out Button (Right)
+    // 2. Show QR Button (Initially Hidden, Positioned Below)
+    this.state.btnShowQR = this.state.groupDashboard.createWidget(hmUI.widget.BUTTON, {
+      x: btnMargin,
+      y: btnY + px(75),
+      w: btnWidth,
+      h: px(60),
+      text: "SHOW QR",
+      color: 0xffffff,
+      normal_color: 0x333333,
+      press_color: 0x555555,
+      radius: px(12),
+      visible: false,
+      click_func: () => {
+        this.generateQR();
+      }
+    });
+
+    // 3. Check Out Button (Always Visible)
     this.state.groupDashboard.createWidget(hmUI.widget.BUTTON, {
       x: btnMargin + btnWidth + btnGap,
       y: btnY,
@@ -204,6 +267,9 @@ Page({
       radius: px(12),
       click_func: () => {
         this.performCheck("OUT");
+        this.state.checkedIn = false;
+        // Hide only the auxiliary QR button
+        if (this.state.btnShowQR) this.state.btnShowQR.setProperty(hmUI.prop.VISIBLE, false);
       }
     });
 
@@ -234,13 +300,13 @@ Page({
     this.state.groupGPS.setProperty(hmUI.prop.VISIBLE, name === "GPS");
     this.state.groupInput.setProperty(hmUI.prop.VISIBLE, name === "INPUT");
     this.state.groupDashboard.setProperty(hmUI.prop.VISIBLE, name === "DASHBOARD");
+    this.state.groupQR.setProperty(hmUI.prop.VISIBLE, name === "QR");
   },
 
   startGPS() {
     this.geolocation = new Geolocation();
     this.geolocation.start();
 
-    // The correct pattern for Zepp OS Geolocation is often event listener or callback
     this.geolocation.onChange = (result) => {
       if (result && result.latitude && result.longitude) {
         this.state.lat = result.latitude;
@@ -252,7 +318,6 @@ Page({
       }
     };
 
-    // Fallback/Timeout for testing if no GPS signal indoors
     setTimeout(() => {
       if (!this.state.lat) {
         hmUI.showToast({ text: "No GPS signal, using mock." });
@@ -295,40 +360,63 @@ Page({
   },
 
   performCheck(type) {
-    // 1. Shift Time Validation
     const now = new Date();
     const hour = now.getHours();
 
-    // Shift: 08:00 - 17:00
     if (hour < 8 || hour >= 17) {
       hmUI.showToast({ text: "Outside Shift Hours (08-17)" });
       return;
     }
 
-    // 2. Anti Fake GPS (Simple Check)
-    // Check if lat/lon is exactly 0 or identical to typical mock locations if known
     if (this.state.lat === 0 && this.state.lon === 0) {
       hmUI.showToast({ text: "GPS Invalid" });
       return;
     }
 
-    // 3. Connect to Backend
-    hmUI.showToast({ text: "Connecting..." });
+    console.log("Connecting for " + type);
 
-    // Mock Fetch
-    const payload = {
-      user: this.state.userName,
-      type: type,
-      lat: this.state.lat,
-      lon: this.state.lon,
-      time: now.toISOString()
-    };
-
-    console.log("Sending:", JSON.stringify(payload));
-
-    // Simulation of success
     setTimeout(() => {
-      hmUI.showToast({ text: type + " Success!" });
-    }, 1500);
+      console.log("Success: " + type);
+      const resNow = new Date();
+      const h = resNow.getHours().toString().padStart(2, '0');
+      const m = resNow.getMinutes().toString().padStart(2, '0');
+      const s = resNow.getSeconds().toString().padStart(2, '0');
+      const resTime = `${h}:${m}:${s}`;
+
+      const day = resNow.getDate().toString().padStart(2, '0');
+      const month = (resNow.getMonth() + 1).toString().padStart(2, '0');
+      const year = resNow.getFullYear();
+      const resDate = `${day}/${month}/${year}`;
+
+      if (type === "IN") {
+        this.state.checkedIn = true;
+        this.state.checkInTime = resTime;
+        this.state.checkInDate = resDate;
+        // Keep Check In visible, just show the additional QR button below
+        if (this.state.btnShowQR) this.state.btnShowQR.setProperty(hmUI.prop.VISIBLE, true);
+      }
+    }, 500);
+  },
+
+  generateQR() {
+    const coords = `${this.state.lon.toFixed(5)},${this.state.lat.toFixed(5)}`;
+    const content = `${this.state.checkInTime},${this.state.checkInDate},${this.state.inputCode},${this.state.userName},${coords}`;
+
+    console.log("Showing QR...");
+    this.showScreen("QR");
+
+    // Fix: Re-create widget for reliability
+    if (this.state.qrWidget) {
+      hmUI.deleteWidget(this.state.qrWidget);
+    }
+
+    const qrSize = px(260);
+    this.state.qrWidget = this.state.groupQR.createWidget(hmUI.widget.QR_CODE, {
+      x: (DEVICE_WIDTH - qrSize) / 2,
+      y: px(50),
+      w: qrSize,
+      h: qrSize,
+      content: content
+    });
   }
 });
