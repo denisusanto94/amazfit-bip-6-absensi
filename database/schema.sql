@@ -193,6 +193,50 @@ CREATE TABLE holidays (
 );
 
 -- =====================================================
+-- ATTENDANCES TRANSUM (Transportasi Umum)
+-- =====================================================
+CREATE TABLE attendances_transum (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+
+    check_in DATETIME NULL,
+    check_in_lat DECIMAL(10,8),
+    check_in_long DECIMAL(11,8),
+    check_in_photo VARCHAR(255),
+
+    check_out DATETIME NULL,
+    check_out_lat DECIMAL(10,8),
+    check_out_long DECIMAL(11,8),
+    check_out_photo VARCHAR(255),
+
+    type_transum ENUM(
+        'LRT',
+        'LRT Jakarta',
+        'MRT',
+        'Transjakarta',
+        'Jaklingko'
+    ) NOT NULL,
+
+    city ENUM(
+        'Jakarta Pusat',
+        'Jakarta Timur',
+        'Jakarta Utara',
+        'Jakarta Barat',
+        'Jakarta Selatan',
+        'Bekasi',
+        'Tangerang Selatan',
+        'Tangerang',
+        'Depok',
+        'Bogor'
+    ) NOT NULL,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (user_id) REFERENCES users(id)
+        ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- =====================================================
 -- SEED DATA
 -- =====================================================
 
