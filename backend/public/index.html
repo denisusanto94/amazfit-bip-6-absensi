@@ -537,6 +537,11 @@
                 <i class="bi bi-file-earmark-text"></i>
                 <span>Leaves / Permits</span>
             </a>
+            <a href="javascript:void(0)" class="nav-link" onclick="switchTab('attendance_transum', this)"
+                data-perm="manage_attendance_transum">
+                <i class="bi bi-train-front"></i>
+                <span>Absensi Rabu</span>
+            </a>
 
             <div class="mobile-divider admin-only"></div>
             <div class="mobile-section-label admin-only">Management</div>
@@ -591,6 +596,11 @@
                     data-perm="manage_leaves_permits">
                     <i class="bi bi-file-earmark-text"></i>
                     <span>Leaves / Permits</span>
+                </a>
+                <a href="javascript:void(0)" class="nav-link" onclick="switchTab('attendance_transum', this)"
+                    data-perm="manage_attendance_transum">
+                    <i class="bi bi-train-front"></i>
+                    <span>Absensi Rabu</span>
                 </a>
 
                 <div class="mt-4 mb-2 px-3 small text-muted text-uppercase fw-bold admin-only"
@@ -662,6 +672,37 @@
                                     <th>Check Out</th>
                                     <th>Status</th>
                                     <th>Duration</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Absensi Rabu / Attendance Transum Section -->
+            <div id="section-attendance_transum" class="hidden">
+                <div class="page-header d-flex justify-content-between align-items-end">
+                    <div>
+                        <p class="text-muted mb-1">Activity</p>
+                        <h1 class="page-title">Absensi Rabu</h1>
+                    </div>
+                    <button class="btn btn-primary" onclick="showAddTransumModal()">
+                        <i class="bi bi-plus-lg me-2"></i> Add Record
+                    </button>
+                </div>
+
+                <div class="card">
+                    <div class="table-responsive">
+                        <table id="transum-table" class="table">
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Type</th>
+                                    <th>City</th>
+                                    <th>Check In</th>
+                                    <th>Check Out</th>
+                                    <th class="text-end">Action</th>
                                 </tr>
                             </thead>
                             <tbody></tbody>
@@ -1006,7 +1047,7 @@
             }
             if (el) el.classList.add('active');
 
-            const sections = ['attendance', 'leaves', 'users', 'divisions', 'roles', 'permissions', 'office', 'shifts', 'holidays'];
+            const sections = ['attendance', 'attendance_transum', 'leaves', 'users', 'divisions', 'roles', 'permissions', 'office', 'shifts', 'holidays'];
             sections.forEach(s => {
                 const sec = document.getElementById(`section-${s}`);
                 if (sec) sec.classList.add('hidden');
@@ -1016,6 +1057,7 @@
 
             const loaders = {
                 attendance: loadAttendance,
+                attendance_transum: loadAttendanceTransum,
                 leaves: loadLeaves,
                 users: loadUsers,
                 divisions: loadDivisions,
@@ -1057,6 +1099,226 @@
                 `;
                 tbody.appendChild(tr);
             });
+        }
+
+        // ========== ATTENDANCE TRANSUM (Absensi Rabu) ==========
+        async function loadAttendanceTransum() {
+            const data = await fetchAPI('/attendance-transum');
+            const tbody = document.querySelector('#transum-table tbody');
+            tbody.innerHTML = '';
+            if (!Array.isArray(data)) return;
+            data.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>
+                        <div class="fw-semibold">${row.name}</div>
+                    </td>
+                    <td><span class="badge bg-blue-subtle">${row.type_transum}</span></td>
+                    <td>${row.city}</td>
+                    <td>${row.check_in ? new Date(row.check_in).toLocaleString() : '-'}</td>
+                    <td>${row.check_out ? new Date(row.check_out).toLocaleString() : '-'}</td>
+                    <td class="text-end">
+                        <button class="btn btn-sm btn-light" onclick="showEditTransumModal(${row.id})"><i class="bi bi-pencil"></i></button>
+                        <button class="btn btn-sm btn-light text-danger" onclick="deleteTransum(${row.id})"><i class="bi bi-trash"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function showAddTransumModal() {
+            const usersOptions = (cachedData.users || []).map(u => `<option value="${u.id}">${u.name}</option>`).join('');
+            document.getElementById('formModalLabel').textContent = 'Add Absensi Rabu';
+            document.getElementById('formModalBody').innerHTML = `
+                <form onsubmit="submitTransum(event)">
+                    <div class="mb-3">
+                        <label class="form-label">User</label>
+                        <select name="user_id" class="form-select" required>${usersOptions}</select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Type Transum</label>
+                        <select name="type_transum" class="form-select" required>
+                            <option value="LRT">LRT</option>
+                            <option value="LRT Jakarta">LRT Jakarta</option>
+                            <option value="MRT">MRT</option>
+                            <option value="Transjakarta">Transjakarta</option>
+                            <option value="Jaklingko">Jaklingko</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">City</label>
+                        <select name="city" class="form-select" required>
+                            <option value="Jakarta Pusat">Jakarta Pusat</option>
+                            <option value="Jakarta Timur">Jakarta Timur</option>
+                            <option value="Jakarta Utara">Jakarta Utara</option>
+                            <option value="Jakarta Barat">Jakarta Barat</option>
+                            <option value="Jakarta Selatan">Jakarta Selatan</option>
+                            <option value="Bekasi">Bekasi</option>
+                            <option value="Tangerang Selatan">Tangerang Selatan</option>
+                            <option value="Tangerang">Tangerang</option>
+                            <option value="Depok">Depok</option>
+                            <option value="Bogor">Bogor</option>
+                        </select>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Check In</label>
+                            <input type="datetime-local" name="check_in" class="form-control">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Check Out</label>
+                            <input type="datetime-local" name="check_out" class="form-control">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Check In Lat</label>
+                            <input type="text" name="check_in_lat" class="form-control" placeholder="-6.200000">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Check In Long</label>
+                            <input type="text" name="check_in_long" class="form-control" placeholder="106.816666">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Check Out Lat</label>
+                            <input type="text" name="check_out_lat" class="form-control" placeholder="-6.200000">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Check Out Long</label>
+                            <input type="text" name="check_out_long" class="form-control" placeholder="106.816666">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Save</button>
+                </form>
+            `;
+            formModal.show();
+        }
+
+        async function submitTransum(e) {
+            e.preventDefault();
+            const form = e.target;
+            const fd = new FormData(form);
+            const body = Object.fromEntries(fd.entries());
+            const token = localStorage.getItem('token');
+            try {
+                const res = await fetch(`${API_URL}/attendance-transum`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify(body)
+                });
+                const data = await res.json();
+                alert(data.message);
+                formModal.hide();
+                loadAttendanceTransum();
+            } catch (err) {
+                alert('Error: ' + err.message);
+            }
+        }
+
+        async function showEditTransumModal(id) {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`${API_URL}/attendance-transum/${id}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const item = await res.json();
+            const usersOptions = (cachedData.users || []).map(u => `<option value="${u.id}" ${u.id === item.user_id ? 'selected' : ''}>${u.name}</option>`).join('');
+
+            const typeOptions = ['LRT', 'LRT Jakarta', 'MRT', 'Transjakarta', 'Jaklingko']
+                .map(t => `<option value="${t}" ${t === item.type_transum ? 'selected' : ''}>${t}</option>`).join('');
+
+            const cityOptions = ['Jakarta Pusat', 'Jakarta Timur', 'Jakarta Utara', 'Jakarta Barat', 'Jakarta Selatan', 'Bekasi', 'Tangerang Selatan', 'Tangerang', 'Depok', 'Bogor']
+                .map(c => `<option value="${c}" ${c === item.city ? 'selected' : ''}>${c}</option>`).join('');
+
+            const fmtDT = (d) => d ? new Date(d).toISOString().slice(0, 16) : '';
+
+            document.getElementById('formModalLabel').textContent = 'Edit Absensi Rabu';
+            document.getElementById('formModalBody').innerHTML = `
+                <form onsubmit="updateTransum(event, ${id})">
+                    <div class="mb-3">
+                        <label class="form-label">User</label>
+                        <select name="user_id" class="form-select" required>${usersOptions}</select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Type Transum</label>
+                        <select name="type_transum" class="form-select" required>${typeOptions}</select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">City</label>
+                        <select name="city" class="form-select" required>${cityOptions}</select>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Check In</label>
+                            <input type="datetime-local" name="check_in" class="form-control" value="${fmtDT(item.check_in)}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Check Out</label>
+                            <input type="datetime-local" name="check_out" class="form-control" value="${fmtDT(item.check_out)}">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Check In Lat</label>
+                            <input type="text" name="check_in_lat" class="form-control" value="${item.check_in_lat || ''}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Check In Long</label>
+                            <input type="text" name="check_in_long" class="form-control" value="${item.check_in_long || ''}">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Check Out Lat</label>
+                            <input type="text" name="check_out_lat" class="form-control" value="${item.check_out_lat || ''}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Check Out Long</label>
+                            <input type="text" name="check_out_long" class="form-control" value="${item.check_out_long || ''}">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Update</button>
+                </form>
+            `;
+            formModal.show();
+        }
+
+        async function updateTransum(e, id) {
+            e.preventDefault();
+            const form = e.target;
+            const fd = new FormData(form);
+            const body = Object.fromEntries(fd.entries());
+            const token = localStorage.getItem('token');
+            try {
+                const res = await fetch(`${API_URL}/attendance-transum/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify(body)
+                });
+                const data = await res.json();
+                alert(data.message);
+                formModal.hide();
+                loadAttendanceTransum();
+            } catch (err) {
+                alert('Error: ' + err.message);
+            }
+        }
+
+        async function deleteTransum(id) {
+            if (!confirm('Delete this record?')) return;
+            const token = localStorage.getItem('token');
+            try {
+                const res = await fetch(`${API_URL}/attendance-transum/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                alert(data.message);
+                loadAttendanceTransum();
+            } catch (err) {
+                alert('Error: ' + err.message);
+            }
         }
 
         async function loadUsers() {

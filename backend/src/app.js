@@ -14,6 +14,7 @@ const holidayRoutes = require('./routes/holidayRoutes');
 const leaveRoutes = require('./routes/leaveRoutes');
 const roleRoutes = require('./routes/roleRoutes');
 const permissionRoutes = require('./routes/permissionRoutes');
+const attendanceTransumRoutes = require('./routes/attendanceTransumRoutes');
 
 const app = express();
 
@@ -33,6 +34,7 @@ app.use('/api/holidays', holidayRoutes);
 app.use('/api/leaves', leaveRoutes);
 app.use('/api/roles', roleRoutes);
 app.use('/api/permissions', permissionRoutes);
+app.use('/api/attendance-transum', attendanceTransumRoutes);
 
 // Helper to get the local network IP address
 function getLocalIP() {
