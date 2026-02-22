@@ -1128,8 +1128,8 @@
 
         function showAddTransumModal() {
             const usersOptions = (cachedData.users || []).map(u => `<option value="${u.id}">${u.name}</option>`).join('');
-            document.getElementById('formModalLabel').textContent = 'Add Absensi Rabu';
-            document.getElementById('formModalBody').innerHTML = `
+            document.querySelector('#formModal .modal-title').textContent = 'Add Absensi Rabu';
+            document.getElementById('modal-body').innerHTML = `
                 <form onsubmit="submitTransum(event)">
                     <div class="mb-3">
                         <label class="form-label">User</label>
@@ -1233,8 +1233,8 @@
 
             const fmtDT = (d) => d ? new Date(d).toISOString().slice(0, 16) : '';
 
-            document.getElementById('formModalLabel').textContent = 'Edit Absensi Rabu';
-            document.getElementById('formModalBody').innerHTML = `
+            document.querySelector('#formModal .modal-title').textContent = 'Edit Absensi Rabu';
+            document.getElementById('modal-body').innerHTML = `
                 <form onsubmit="updateTransum(event, ${id})">
                     <div class="mb-3">
                         <label class="form-label">User</label>
