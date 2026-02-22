@@ -121,6 +121,7 @@
         .sidebar-menu {
             flex: 1;
             padding: 0 16px;
+            overflow-y: auto;
         }
 
         .nav-link {
@@ -159,7 +160,8 @@
             margin-left: 280px;
             flex: 1;
             padding: 40px;
-            max-width: 1200px;
+            width: calc(100% - 280px);
+            min-height: 100vh;
         }
 
         .page-header {
@@ -178,6 +180,7 @@
             box-shadow: var(--card-shadow);
             background-color: white;
             overflow: hidden;
+            margin-bottom: 2rem;
         }
 
         .table {
@@ -292,6 +295,86 @@
             border-radius: 20px;
             box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
         }
+
+        /* --- Responsive Styles --- */
+        #mobile-header {
+            display: none;
+            background: white;
+            padding: 15px 20px;
+            border-bottom: 1px solid #e2e8f0;
+            position: sticky;
+            top: 0;
+            z-index: 1100;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            backdrop-filter: blur(2px);
+        }
+
+        @media (max-width: 1024px) {
+            #sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+
+            #sidebar.active {
+                transform: translateX(0);
+            }
+
+            .sidebar-overlay.active {
+                display: block;
+            }
+
+            .content-container {
+                margin-left: 0;
+                padding: 20px;
+                width: 100%;
+            }
+
+            #mobile-header {
+                display: flex;
+            }
+
+            .page-title {
+                font-size: 1.5rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start !important;
+                gap: 15px;
+            }
+
+            .btn-primary {
+                width: 100%;
+            }
+
+            .login-card {
+                padding: 25px;
+                margin: 20px;
+            }
+        }
+
+        /* Smooth Scrolling */
+        html {
+            scroll-behavior: smooth;
+        }
+
+        #main-section {
+            overflow-y: auto;
+        }
     </style>
 </head>
 
@@ -307,8 +390,8 @@
             </div>
             <div id="error-msg" class="alert alert-danger hidden"></div>
             <div class="mb-3">
-                <label class="form-label font-weight-bold">Username</label>
-                <input type="text" id="username" class="form-control" placeholder="admin">
+                <label class="form-label font-weight-bold">Email Address</label>
+                <input type="email" id="email" class="form-control" placeholder="admin@company.com">
             </div>
             <div class="mb-4">
                 <label class="form-label">Password</label>
@@ -320,6 +403,18 @@
 
     <!-- Layout Container -->
     <div id="main-section" class="hidden">
+        <div id="mobile-header">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-geo-alt-fill text-primary"></i>
+                <span class="fw-bold">Absensi</span>
+            </div>
+            <button class="btn btn-light" onclick="toggleSidebar()">
+                <i class="bi bi-list fs-4"></i>
+            </button>
+        </div>
+
+        <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
         <!-- Sidebar -->
         <nav id="sidebar">
             <div class="sidebar-header">
@@ -327,26 +422,50 @@
                 <span id="app-brand-name">Absensi Admin</span>
             </div>
             <div class="sidebar-menu">
-                <a href="javascript:void(0)" class="nav-link active" onclick="switchTab('attendance', this)">
+                <a href="javascript:void(0)" class="nav-link active" onclick="switchTab('attendance', this)"
+                    data-perm="manage_attendance">
                     <i class="bi bi-clock-history"></i>
-                    <span id="activity-tab-label">Dashboard</span>
+                    <span>Attendance</span>
                 </a>
-                <div id="admin-menus">
-                    <a href="javascript:void(0)" class="nav-link" onclick="switchTab('users', this)">
-                        <i class="bi bi-people"></i>
-                        <span>Users Directory</span>
-                    </a>
-                    <a href="javascript:void(0)" class="nav-link" onclick="switchTab('office', this)">
-                        <i class="bi bi-building-gear"></i>
-                        <span>Office Locations</span>
-                    </a>
-                </div>
-                <div id="employee-menus" class="hidden">
-                    <a href="javascript:void(0)" class="nav-link" onclick="switchTab('scan', this)">
-                        <i class="bi bi-camera"></i>
-                        <span>Scan Attendance</span>
-                    </a>
-                </div>
+                <a href="javascript:void(0)" class="nav-link" onclick="switchTab('leaves', this)"
+                    data-perm="manage_leaves_permits">
+                    <i class="bi bi-file-earmark-text"></i>
+                    <span>Leaves / Permits</span>
+                </a>
+
+                <div class="mt-4 mb-2 px-3 small text-muted text-uppercase fw-bold admin-only"
+                    style="font-size: 0.65rem; letter-spacing: 0.05em;">Management</div>
+                <a href="javascript:void(0)" class="nav-link admin-only" onclick="switchTab('users', this)">
+                    <i class="bi bi-people"></i>
+                    <span>Users</span>
+                </a>
+                <a href="javascript:void(0)" class="nav-link admin-only" onclick="switchTab('divisions', this)">
+                    <i class="bi bi-diagram-3"></i>
+                    <span>Divisions</span>
+                </a>
+                <a href="javascript:void(0)" class="nav-link admin-only" onclick="switchTab('roles', this)">
+                    <i class="bi bi-shield-lock"></i>
+                    <span>Roles</span>
+                </a>
+                <a href="javascript:void(0)" class="nav-link admin-only" onclick="switchTab('permissions', this)">
+                    <i class="bi bi-key"></i>
+                    <span>Permissions</span>
+                </a>
+
+                <div class="mt-4 mb-2 px-3 small text-muted text-uppercase fw-bold admin-only"
+                    style="font-size: 0.65rem; letter-spacing: 0.05em;">System Master</div>
+                <a href="javascript:void(0)" class="nav-link admin-only" onclick="switchTab('office', this)">
+                    <i class="bi bi-building"></i>
+                    <span>Offices</span>
+                </a>
+                <a href="javascript:void(0)" class="nav-link admin-only" onclick="switchTab('shifts', this)">
+                    <i class="bi bi-stopwatch"></i>
+                    <span>Shifts</span>
+                </a>
+                <a href="javascript:void(0)" class="nav-link admin-only" onclick="switchTab('holidays', this)">
+                    <i class="bi bi-calendar-event"></i>
+                    <span>Holidays</span>
+                </a>
             </div>
 
             <div class="mt-auto p-4 border-top">
@@ -361,62 +480,15 @@
         <!-- Dynamic Content Area -->
         <div class="content-container">
 
-            <!-- Attendance Section for Employee -->
-            <div id="section-scan" class="hidden">
-                <div class="page-header mb-4">
-                    <p class="text-muted mb-1">Attendance</p>
-                    <h1 class="page-title">Scan Registration</h1>
-                </div>
-
-                <div class="row g-4">
-                    <div class="col-md-6">
-                        <div class="card p-4 text-center">
-                            <div class="display-6 text-primary mb-3"><i class="bi bi-person-bounding-box"></i></div>
-                            <h4 class="mb-3">Face Verification</h4>
-                            <div class="camera-overlay mb-4">
-                                <video id="face-video" autoplay playsinline></video>
-                                <div class="scan-frame"></div>
-                            </div>
-                            <button class="btn btn-primary btn-lg px-5" onclick="processFaceScan()">
-                                <i class="bi bi-camera-fill me-2"></i> Take Photo
-                            </button>
-                            <div class="mt-3">
-                                <label class="text-primary cursor-pointer" style="cursor: pointer">
-                                    <i class="bi bi-file-earmark-image"></i> Manual Upload
-                                    <input type="file" class="hidden" accept="image/*"
-                                        onchange="uploadFaceImage(event)">
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="card p-4 text-center">
-                            <div class="display-6 text-primary mb-3"><i class="bi bi-qr-code-scan"></i></div>
-                            <h4 class="mb-3">QR Code Scan</h4>
-                            <div id="reader" class="mb-4"></div>
-                            <div class="d-grid gap-2 col-8 mx-auto">
-                                <button class="btn btn-outline-primary btn-lg" id="qr-btn" onclick="toggleQRScanner()">
-                                    <i class="bi bi-play-fill me-2"></i> Start QR Scanner
-                                </button>
-                                <label class="btn btn-light text-primary border" style="cursor: pointer">
-                                    <i class="bi bi-upload me-2"></i> Upload QR Image
-                                    <input type="file" class="hidden" accept="image/*" onchange="uploadQRImage(event)">
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Dashboard/Attendance Section -->
+            <!-- Attendance Section -->
             <div id="section-attendance">
                 <div class="page-header d-flex justify-content-between align-items-end">
                     <div>
-                        <p class="text-muted mb-1">Overview</p>
-                        <h1 class="page-title">Attendance Activity</h1>
+                        <p class="text-muted mb-1">Activity</p>
+                        <h1 class="page-title">Attendance Log</h1>
                     </div>
                     <button class="btn btn-primary" onclick="exportData()">
-                        <i class="bi bi-download me-2"></i> Export Data
+                        <i class="bi bi-download me-2"></i> Export Excel
                     </button>
                 </div>
 
@@ -425,11 +497,11 @@
                         <table id="attendance-table" class="table">
                             <thead>
                                 <tr>
-                                    <th>User</th>
-                                    <th>Activity</th>
-                                    <th>Date & Time</th>
+                                    <th>User / Office</th>
+                                    <th>Check In</th>
+                                    <th>Check Out</th>
                                     <th>Status</th>
-                                    <th>Geo Location</th>
+                                    <th>Duration</th>
                                 </tr>
                             </thead>
                             <tbody></tbody>
@@ -438,28 +510,27 @@
                 </div>
             </div>
 
-            <!-- Management: Users Section -->
-            <div id="section-users" class="hidden">
+            <!-- Leaves Section -->
+            <div id="section-leaves" class="hidden">
                 <div class="page-header d-flex justify-content-between align-items-end">
                     <div>
-                        <p class="text-muted mb-1">Management</p>
-                        <h1 class="page-title">Users Directory</h1>
+                        <p class="text-muted mb-1">Activity</p>
+                        <h1 class="page-title">Leaves & Permits</h1>
                     </div>
-                    <button class="btn btn-primary" onclick="showAddUserModal()">
-                        <i class="bi bi-plus-lg me-2"></i> Add New User
+                    <button class="btn btn-primary" onclick="showAddLeaveModal()">
+                        <i class="bi bi-plus-lg me-2"></i> Request Leave
                     </button>
                 </div>
-
                 <div class="card">
                     <div class="table-responsive">
-                        <table id="users-table" class="table">
+                        <table id="leaves-table" class="table">
                             <thead>
                                 <tr>
-                                    <th>ID</th>
-                                    <th>Username</th>
-                                    <th>Full Name</th>
-                                    <th>Role</th>
-                                    <th>Shift Hours</th>
+                                    <th>User</th>
+                                    <th>Type</th>
+                                    <th>Period</th>
+                                    <th>Reason</th>
+                                    <th>Status</th>
                                     <th class="text-end">Action</th>
                                 </tr>
                             </thead>
@@ -469,27 +540,194 @@
                 </div>
             </div>
 
-            <!-- Management: Office Section -->
+            <!-- Users Section -->
+            <div id="section-users" class="hidden">
+                <div class="page-header d-flex justify-content-between align-items-end">
+                    <div>
+                        <p class="text-muted mb-1">Management</p>
+                        <h1 class="page-title">Users</h1>
+                    </div>
+                    <button class="btn btn-primary" onclick="showAddUserModal()">
+                        <i class="bi bi-person-plus me-2"></i> Add User
+                    </button>
+                </div>
+                <div class="card">
+                    <div class="table-responsive">
+                        <table id="users-table" class="table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Email</th>
+                                    <th>Name</th>
+                                    <th>Division</th>
+                                    <th>Office</th>
+                                    <th class="text-end">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Divisions Section -->
+            <div id="section-divisions" class="hidden">
+                <div class="page-header d-flex justify-content-between align-items-end">
+                    <div>
+                        <p class="text-muted mb-1">Management</p>
+                        <h1 class="page-title">Divisions</h1>
+                    </div>
+                    <button class="btn btn-primary" onclick="showAddDivisionModal()">
+                        <i class="bi bi-plus-lg me-2"></i> Add Division
+                    </button>
+                </div>
+                <div class="card">
+                    <div class="table-responsive">
+                        <table id="divisions-table" class="table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Division Name</th>
+                                    <th class="text-end">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Roles Section -->
+            <div id="section-roles" class="hidden">
+                <div class="page-header d-flex justify-content-between align-items-end">
+                    <div>
+                        <p class="text-muted mb-1">Management</p>
+                        <h1 class="page-title">Roles</h1>
+                    </div>
+                    <button class="btn btn-primary" onclick="showAddRoleModal()">
+                        <i class="bi bi-shield-lock me-2"></i> Add Role
+                    </button>
+                </div>
+                <div class="card">
+                    <div class="table-responsive">
+                        <table id="roles-table" class="table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Role Name</th>
+                                    <th>Permissions</th>
+                                    <th class="text-end">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Permissions Section -->
+            <div id="section-permissions" class="hidden">
+                <div class="page-header d-flex justify-content-between align-items-end">
+                    <div>
+                        <p class="text-muted mb-1">Management</p>
+                        <h1 class="page-title">Permissions</h1>
+                    </div>
+                    <button class="btn btn-primary" onclick="showAddPermissionModal()">
+                        <i class="bi bi-key me-2"></i> Add Permission
+                    </button>
+                </div>
+                <div class="card">
+                    <div class="table-responsive">
+                        <table id="permissions-table" class="table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Permission Name</th>
+                                    <th class="text-end">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Office Section -->
             <div id="section-office" class="hidden">
                 <div class="page-header d-flex justify-content-between align-items-end">
                     <div>
-                        <p class="text-muted mb-1">Presence</p>
-                        <h1 class="page-title">Office Locations</h1>
+                        <p class="text-muted mb-1">System Master</p>
+                        <h1 class="page-title">Offices</h1>
                     </div>
                     <button class="btn btn-primary" onclick="showAddOfficeModal()">
-                        <i class="bi bi-plus-lg me-2"></i> Add Location
+                        <i class="bi bi-geo-alt me-2"></i> Add Office
                     </button>
                 </div>
-
                 <div class="card">
                     <div class="table-responsive">
                         <table id="office-table" class="table">
                             <thead>
                                 <tr>
-                                    <th>Name</th>
-                                    <th>Latitude</th>
-                                    <th>Longitude</th>
+                                    <th>Office Name</th>
+                                    <th>Location</th>
                                     <th>Radius</th>
+                                    <th>Address</th>
+                                    <th class="text-end">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Shifts Section -->
+            <div id="section-shifts" class="hidden">
+                <div class="page-header d-flex justify-content-between align-items-end">
+                    <div>
+                        <p class="text-muted mb-1">System Master</p>
+                        <h1 class="page-title">Work Shifts</h1>
+                    </div>
+                    <button class="btn btn-primary" onclick="showAddShiftModal()">
+                        <i class="bi bi-clock me-2"></i> Add Shift
+                    </button>
+                </div>
+                <div class="card">
+                    <div class="table-responsive">
+                        <table id="shifts-table" class="table">
+                            <thead>
+                                <tr>
+                                    <th>Shift Name</th>
+                                    <th>Check In</th>
+                                    <th>Check Out</th>
+                                    <th>Tolerance</th>
+                                    <th class="text-end">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Holidays Section -->
+            <div id="section-holidays" class="hidden">
+                <div class="page-header d-flex justify-content-between align-items-end">
+                    <div>
+                        <p class="text-muted mb-1">System Master</p>
+                        <h1 class="page-title">Public Holidays</h1>
+                    </div>
+                    <button class="btn btn-primary" onclick="showAddHolidayModal()">
+                        <i class="bi bi-calendar-event me-2"></i> Add Holiday
+                    </button>
+                </div>
+                <div class="card">
+                    <div class="table-responsive">
+                        <table id="holidays-table" class="table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Holiday Name</th>
                                     <th class="text-end">Action</th>
                                 </tr>
                             </thead>
@@ -500,6 +738,8 @@
             </div>
 
         </div>
+
+    </div>
     </div>
 
     <!-- Generic Modal for Forms -->
@@ -525,71 +765,71 @@
     <script>
         const API_URL = '/api';
         let formModal;
-        let cachedUsers = [];
-        let cachedOffices = [];
-        let qrScanner = null;
-        let videoStream = null;
+        let cachedData = {
+            users: [],
+            divisions: [],
+            roles: [],
+            permissions: [],
+            offices: [],
+            shifts: [],
+            holidays: [],
+            leaves: []
+        };
 
-        function checkAuth() {
+        async function checkAuth() {
             try {
                 const token = localStorage.getItem('token');
-                const role = localStorage.getItem('userRole');
-                console.log("Checking auth...", { hasToken: !!token, role });
-
-                if (token && role) {
+                if (token) {
                     document.getElementById('login-section').classList.add('hidden');
                     document.getElementById('main-section').classList.remove('hidden');
 
-                    if (role === 'admin') {
-                        document.getElementById('admin-menus').classList.remove('hidden');
-                        document.getElementById('employee-menus').classList.add('hidden');
-                        document.getElementById('app-brand-name').innerText = 'Absensi Admin';
-                        document.getElementById('activity-tab-label').innerText = 'Company Activity';
-                        const navLink = document.querySelector('.nav-link[onclick*="attendance"]');
-                        switchTab('attendance', navLink);
-                    } else {
-                        document.getElementById('admin-menus').classList.add('hidden');
-                        document.getElementById('employee-menus').classList.remove('hidden');
-                        document.getElementById('app-brand-name').innerText = 'Absensi Employee';
-                        document.getElementById('activity-tab-label').innerText = 'My Activity';
-                        const navLink = document.querySelector('.nav-link[onclick*="scan"]');
-                        switchTab('scan', navLink);
+                    // Apply RBAC to Sidebar
+                    const userRole = localStorage.getItem('userRole');
+                    if (userRole !== 'super_admin') {
+                        document.querySelectorAll('.admin-only').forEach(el => el.classList.add('hidden'));
                     }
 
-                    loadAttendance();
+                    await loadMasterData();
+                    switchTab('attendance');
                 }
             } catch (err) {
                 console.error("Auth check failed:", err);
             }
         }
 
+        async function loadMasterData() {
+            // Load roles, divisions, offices, and permissions for dropdowns/modals
+            await Promise.all([
+                loadRoles(),
+                loadDivisions(),
+                loadOffices(),
+                loadPermissions()
+            ]);
+        }
+
         async function login() {
-            const username = document.getElementById('username').value;
+            const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
             const errorEl = document.getElementById('error-msg');
 
             try {
-                console.log("Attempting login for:", username);
                 const res = await fetch(`${API_URL}/auth/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
+                    body: JSON.stringify({ email, password })
                 });
                 const data = await res.json();
-                console.log("Login response:", data);
 
                 if (res.ok && data.token) {
                     localStorage.setItem('token', data.token);
-                    localStorage.setItem('userRole', data.user.role);
-                    console.log("Login successful, reloading...");
+                    localStorage.setItem('userRole', data.user.role || '');
                     location.reload();
                 } else {
                     errorEl.innerText = data.message || 'Unauthorized access';
                     errorEl.classList.remove('hidden');
                 }
             } catch (err) {
-                console.error("Login request failed:", err);
-                alert('Network error. Is the server running?');
+                alert('Network error.');
             }
         }
 
@@ -601,26 +841,31 @@
 
         function switchTab(tab, el) {
             document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+            if (!el) {
+                el = document.querySelector(`.nav-link[onclick*="'${tab}'"]`);
+            }
             if (el) el.classList.add('active');
 
-            ['attendance', 'users', 'office', 'scan'].forEach(t => {
-                const sec = document.getElementById(`section-${t}`);
+            const sections = ['attendance', 'leaves', 'users', 'divisions', 'roles', 'permissions', 'office', 'shifts', 'holidays'];
+            sections.forEach(s => {
+                const sec = document.getElementById(`section-${s}`);
                 if (sec) sec.classList.add('hidden');
             });
             const targetSec = document.getElementById(`section-${tab}`);
             if (targetSec) targetSec.classList.remove('hidden');
 
-            if (tab === 'attendance') loadAttendance();
-            if (tab === 'users') loadUsers();
-            if (tab === 'office') loadOffices();
-
-            // Manage Camera Streams
-            if (tab === 'scan') {
-                initFaceCamera();
-            } else {
-                stopFaceCamera();
-                stopQRScanner();
-            }
+            const loaders = {
+                attendance: loadAttendance,
+                leaves: loadLeaves,
+                users: loadUsers,
+                divisions: loadDivisions,
+                roles: loadRoles,
+                permissions: loadPermissions,
+                office: loadOffices,
+                shifts: loadShifts,
+                holidays: loadHolidays
+            };
+            if (loaders[tab]) loaders[tab]();
         }
 
         async function fetchAPI(endpoint) {
@@ -628,7 +873,9 @@
             const res = await fetch(`${API_URL}${endpoint}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            if (res.status === 403) logout();
+            // Don't auto-logout for 403 (Forbidden) if it's a staff accessing restricted area
+            // Only logout on 401 (Unauthorized/Expired Token)
+            if (res.status === 401) logout();
             return res.json();
         }
 
@@ -640,32 +887,13 @@
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td>
-                        <div class="d-flex align-items-center gap-3">
-                            <div class="rounded-circle bg-light d-flex align-items-center justify-content-center" style="width: 40px; height: 40px">
-                                <i class="bi bi-person text-primary"></i>
-                            </div>
-                            <div>
-                                <div class="fw-semibold">${row.name}</div>
-                                <div class="text-muted small">${row.device_info}</div>
-                            </div>
-                        </div>
+                        <div class="fw-semibold">${row.name}</div>
+                        <div class="text-muted small">${row.office_name || 'N/A'}</div>
                     </td>
-                    <td>
-                        <span class="badge ${row.type.startsWith('check_in') ? 'bg-blue-subtle' : 'bg-warning-subtle text-warning'}">
-                            ${row.type.replace('_', ' ').toUpperCase()}
-                        </span>
-                    </td>
-                    <td>${new Date(row.timestamp).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</td>
-                    <td>
-                        <span class="badge ${row.status === 'valid' ? 'bg-success-subtle' : 'bg-danger-subtle'}">
-                            ${row.status.toUpperCase()}
-                        </span>
-                    </td>
-                    <td>
-                        <a href="https://www.google.com/maps?q=${row.latitude},${row.longitude}" target="_blank" class="btn btn-sm btn-light">
-                            <i class="bi bi-geo-alt"></i> ${parseFloat(row.latitude).toFixed(4)}, ${parseFloat(row.longitude).toFixed(4)}
-                        </a>
-                    </td>
+                    <td>${row.check_in ? new Date(row.check_in).toLocaleString() : '-'}</td>
+                    <td>${row.check_out ? new Date(row.check_out).toLocaleString() : '-'}</td>
+                    <td><span class="badge ${row.status === 'present' ? 'bg-success-subtle' : 'bg-warning-subtle text-warning'}">${row.status.toUpperCase()}</span></td>
+                    <td>${row.work_duration || 0} min</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -673,24 +901,78 @@
 
         async function loadUsers() {
             const data = await fetchAPI('/users');
-            cachedUsers = data;
+            cachedData.users = data;
             const tbody = document.querySelector('#users-table tbody');
             tbody.innerHTML = '';
             data.forEach(row => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td>${row.id}</td>
-                    <td class="fw-medium">${row.username}</td>
+                    <td>${row.email}</td>
                     <td>${row.name}</td>
-                    <td><span class="badge bg-light text-dark border">${row.role}</span></td>
-                    <td>${row.shift_start} - ${row.shift_end}</td>
+                    <td>${row.division || 'N/A'}</td>
+                    <td>${row.role || 'N/A'}</td>
                     <td class="text-end">
-                        <button class="btn btn-sm btn-outline-primary me-1" onclick="showEditUserModal(${row.id})">
-                            <i class="bi bi-pencil"></i>
-                        </button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="deleteItem('users', ${row.id}, loadUsers)">
-                            <i class="bi bi-trash"></i>
-                        </button>
+                        <button class="btn btn-sm btn-light" onclick="showEditUserModal(${row.id})"><i class="bi bi-pencil"></i></button>
+                        <button class="btn btn-sm btn-light text-danger" onclick="deleteItem('users', ${row.id}, loadUsers)"><i class="bi bi-trash"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function loadDivisions() {
+            const data = await fetchAPI('/divisions');
+            cachedData.divisions = data;
+            const tbody = document.querySelector('#divisions-table tbody');
+            tbody.innerHTML = '';
+            data.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${row.id}</td>
+                    <td>${row.divisions_name}</td>
+                    <td class="text-end">
+                        <button class="btn btn-sm btn-light" onclick="showEditDivisionModal(${row.id})"><i class="bi bi-pencil"></i></button>
+                        <button class="btn btn-sm btn-light text-danger" onclick="deleteItem('divisions', ${row.id}, loadDivisions)"><i class="bi bi-trash"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function loadRoles() {
+            const data = await fetchAPI('/roles');
+            cachedData.roles = data;
+            const tbody = document.querySelector('#roles-table tbody');
+            tbody.innerHTML = '';
+            data.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${row.id}</td>
+                    <td>${row.roles_name}</td>
+                    <td><small class="text-muted">${row.permissions || '-'}</small></td>
+                    <td class="text-end">
+                        <button class="btn btn-sm btn-light" onclick="showEditRoleModal(${row.id})"><i class="bi bi-pencil"></i></button>
+                        <button class="btn btn-sm btn-light text-danger" onclick="deleteItem('roles', ${row.id}, loadRoles)"><i class="bi bi-trash"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function loadPermissions() {
+            const data = await fetchAPI('/permissions');
+            cachedData.permissions = data;
+            const tbody = document.querySelector('#permissions-table tbody');
+            tbody.innerHTML = '';
+            data.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${row.id}</td>
+                    <td>${row.permissions_name}</td>
+                    <td class="text-end">
+                        <button class="btn btn-sm btn-light" onclick="showEditPermissionModal(${row.id})"><i class="bi bi-pencil"></i></button>
+                        <button class="btn btn-sm btn-light text-danger" onclick="deleteItem('permissions', ${row.id}, loadPermissions)"><i class="bi bi-trash"></i></button>
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -699,31 +981,102 @@
 
         async function loadOffices() {
             const data = await fetchAPI('/offices');
-            cachedOffices = data;
+            cachedData.offices = data;
             const tbody = document.querySelector('#office-table tbody');
             tbody.innerHTML = '';
             data.forEach(row => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td class="fw-medium">${row.name}</td>
-                    <td>${row.latitude}</td>
-                    <td>${row.longitude}</td>
-                    <td>${row.radius}m</td>
+                    <td>${row.office_name}</td>
+                    <td>${row.latitude}, ${row.longitude}</td>
+                    <td>${row.radius_meter}m</td>
+                    <td>${row.address || '-'}</td>
                     <td class="text-end">
-                        <button class="btn btn-sm btn-outline-primary me-1" onclick="showEditOfficeModal(${row.id})">
-                            <i class="bi bi-pencil"></i>
-                        </button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="deleteItem('offices', ${row.id}, loadOffices)">
-                            <i class="bi bi-trash"></i>
-                        </button>
+                        <button class="btn btn-sm btn-light" onclick="showEditOfficeModal(${row.id})"><i class="bi bi-pencil"></i></button>
+                        <button class="btn btn-sm btn-light text-danger" onclick="deleteItem('offices', ${row.id}, loadOffices)"><i class="bi bi-trash"></i></button>
                     </td>
                 `;
                 tbody.appendChild(tr);
             });
         }
 
+        async function loadShifts() {
+            const data = await fetchAPI('/shifts');
+            cachedData.shifts = data;
+            const tbody = document.querySelector('#shifts-table tbody');
+            tbody.innerHTML = '';
+            data.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${row.shift_name}</td>
+                    <td>${row.check_in}</td>
+                    <td>${row.check_out}</td>
+                    <td>${row.late_tolerance_minute} min</td>
+                    <td class="text-end">
+                        <button class="btn btn-sm btn-light" onclick="showEditShiftModal(${row.id})"><i class="bi bi-pencil"></i></button>
+                        <button class="btn btn-sm btn-light text-danger" onclick="deleteItem('shifts', ${row.id}, loadShifts)"><i class="bi bi-trash"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function loadHolidays() {
+            const data = await fetchAPI('/holidays');
+            cachedData.holidays = data;
+            const tbody = document.querySelector('#holidays-table tbody');
+            tbody.innerHTML = '';
+            data.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${new Date(row.holiday_date).toLocaleDateString()}</td>
+                    <td>${row.holiday_name}</td>
+                    <td class="text-end">
+                        <button class="btn btn-sm btn-light" onclick="showEditHolidayModal(${row.id})"><i class="bi bi-pencil"></i></button>
+                        <button class="btn btn-sm btn-light text-danger" onclick="deleteItem('holidays', ${row.id}, loadHolidays)"><i class="bi bi-trash"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function loadLeaves() {
+            const data = await fetchAPI('/leaves');
+            cachedData.leaves = data;
+            const tbody = document.querySelector('#leaves-table tbody');
+            tbody.innerHTML = '';
+            data.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${row.user_name}</td>
+                    <td><span class="badge bg-light text-dark">${row.leave_type.toUpperCase()}</span></td>
+                    <td>${new Date(row.start_date).toLocaleDateString()} - ${new Date(row.end_date).toLocaleDateString()}</td>
+                    <td>${row.reason || '-'}</td>
+                    <td><span class="badge ${row.status === 'approved' ? 'bg-success' : (row.status === 'rejected' ? 'bg-danger' : 'bg-warning')}">${row.status.toUpperCase()}</span></td>
+                    <td class="text-end">
+                        ${row.status === 'pending' ? `
+                            <button class="btn btn-sm btn-success me-1" onclick="updateLeaveStatus(${row.id}, 'approved')"><i class="bi bi-check-lg"></i></button>
+                            <button class="btn btn-sm btn-danger me-1" onclick="updateLeaveStatus(${row.id}, 'rejected')"><i class="bi bi-x-lg"></i></button>
+                        ` : ''}
+                        <button class="btn btn-sm btn-light text-danger" onclick="deleteItem('leaves', ${row.id}, loadLeaves)"><i class="bi bi-trash"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function updateLeaveStatus(id, status) {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`${API_URL}/leaves/${id}/status`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ status })
+            });
+            if (res.ok) loadLeaves();
+        }
+
         async function deleteItem(type, id, callback) {
-            if (!confirm('Are you sure you want to remove this entry?')) return;
+            if (!confirm('Are you sure?')) return;
             const token = localStorage.getItem('token');
             const res = await fetch(`${API_URL}/${type}/${id}`, {
                 method: 'DELETE',
@@ -735,15 +1088,24 @@
         async function handleFormSubmit(event, endpoint, callback, method = 'POST') {
             event.preventDefault();
             const formData = new FormData(event.target);
-            const data = Object.fromEntries(formData.entries());
+            const data = {};
+
+            formData.forEach((value, key) => {
+                if (data[key]) {
+                    if (!Array.isArray(data[key])) {
+                        data[key] = [data[key]];
+                    }
+                    data[key].push(value);
+                } else {
+                    data[key] = value;
+                }
+            });
+
             const token = localStorage.getItem('token');
 
             const res = await fetch(`${API_URL}${endpoint}`, {
                 method: method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify(data)
             });
 
@@ -752,225 +1114,210 @@
                 callback();
             } else {
                 const err = await res.json();
-                alert(err.message || 'Operation failed');
+                alert(err.message || 'Error');
             }
         }
 
-        function showAddUserModal() {
-            document.querySelector('#formModal .modal-dialog').classList.remove('modal-lg');
-            document.querySelector('#formModal .modal-title').innerText = 'Register New User';
+        function showAddDivisionModal() {
             document.getElementById('modal-body').innerHTML = `
-                <form onsubmit="handleFormSubmit(event, '/users', loadUsers)">
+                <form onsubmit="handleFormSubmit(event, '/divisions', loadDivisions)">
                     <div class="mb-3">
-                        <label class="form-label small text-muted">Username (NIP/ID)</label>
-                        <input type="text" name="username" class="form-control" placeholder="12345" required>
+                        <label class="form-label">Division Name</label>
+                        <input type="text" name="division_name" class="form-control" required>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label small text-muted">Access Password</label>
-                        <input type="password" name="password" class="form-control" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label small text-muted">Employee Name</label>
-                        <input type="text" name="name" class="form-control" placeholder="John Doe" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label small text-muted">System Role</label>
-                        <select name="role" class="form-select">
-                            <option value="employee">Employee</option>
-                            <option value="admin">System Admin</option>
-                        </select>
-                    </div>
-                    <div class="row g-3 mb-4">
-                        <div class="col">
-                            <label class="form-label small text-muted">Start Shift</label>
-                            <input type="time" name="shift_start" class="form-control" value="08:00">
-                        </div>
-                        <div class="col">
-                            <label class="form-label small text-muted">End Shift</label>
-                            <input type="time" name="shift_end" class="form-control" value="17:00">
-                        </div>
-                    </div>
-                    <button type="submit" class="btn btn-primary w-100 shadow-sm">Save Employee</button>
+                    <button type="submit" class="btn btn-primary w-100">Save</button>
                 </form>
             `;
             formModal.show();
         }
 
-        function showEditUserModal(userId) {
-            document.querySelector('#formModal .modal-dialog').classList.remove('modal-lg');
-            const user = cachedUsers.find(u => u.id === userId);
-            if (!user) return;
-
-            document.querySelector('#formModal .modal-title').innerText = 'Edit User: ' + user.name;
+        function showAddShiftModal() {
             document.getElementById('modal-body').innerHTML = `
-                <form onsubmit="handleFormSubmit(event, '/users/${user.id}', loadUsers, 'PUT')">
+                <form onsubmit="handleFormSubmit(event, '/shifts', loadShifts)">
                     <div class="mb-3">
-                        <label class="form-label small text-muted">Username (NIP/ID)</label>
-                        <input type="text" name="username" class="form-control" value="${user.username}" required>
+                        <label class="form-label">Shift Name</label>
+                        <input type="text" name="shift_name" class="form-control" required>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col"><label class="form-label">Check In</label><input type="time" name="check_in" class="form-control" required></div>
+                        <div class="col"><label class="form-label">Check Out</label><input type="time" name="check_out" class="form-control" required></div>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label small text-muted">New Password (leave blank to keep current)</label>
-                        <input type="password" name="password" class="form-control" placeholder="********">
+                        <label class="form-label">Tolerance (min)</label>
+                        <input type="number" name="late_tolerance_minute" class="form-control" value="10">
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Save</button>
+                </form>
+            `;
+            formModal.show();
+        }
+
+        function showAddDivisionModal() {
+            document.getElementById('modal-body').innerHTML = `
+                <form onsubmit="handleFormSubmit(event, '/divisions', loadDivisions)">
+                    <div class="mb-3">
+                        <label class="form-label">Division Name</label>
+                        <input type="text" name="divisions_name" class="form-control" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Save</button>
+                </form>
+            `;
+            formModal.show();
+        }
+
+        function showAddRoleModal() {
+            const divs = cachedData.divisions.map(d => `<option value="${d.id}">${d.divisions_name}</option>`).join('');
+            const perms = cachedData.permissions.map(p => `
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="permissions" value="${p.id}" id="permAdd${p.id}">
+                    <label class="form-check-label" for="permAdd${p.id}">${p.permissions_name}</label>
+                </div>
+            `).join('');
+
+            document.getElementById('modal-body').innerHTML = `
+                <form onsubmit="handleFormSubmit(event, '/roles', loadRoles)">
+                    <div class="mb-3">
+                        <label class="form-label">Role Name</label>
+                        <input type="text" name="roles_name" class="form-control" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label small text-muted">Employee Name</label>
-                        <input type="text" name="name" class="form-control" value="${user.name}" required>
+                        <label class="form-label">Division Scope</label>
+                        <select name="division_id" class="form-select">${divs}</select>
+                        <small class="text-muted">Permissions will be assigned to this division.</small>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label small text-muted">System Role</label>
-                        <select name="role" class="form-select">
-                            <option value="employee" ${user.role === 'employee' ? 'selected' : ''}>Employee</option>
-                            <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>System Admin</option>
-                        </select>
+                        <label class="form-label">Permissions</label>
+                        <div class="border rounded p-3" style="max-height: 200px; overflow-y: auto;">
+                            ${perms}
+                        </div>
                     </div>
-                    <div class="row g-3 mb-4">
+                    <button type="submit" class="btn btn-primary w-100">Save</button>
+                </form>
+            `;
+            formModal.show();
+        }
+
+        function showAddPermissionModal() {
+            document.getElementById('modal-body').innerHTML = `
+                <form onsubmit="handleFormSubmit(event, '/permissions', loadPermissions)">
+                    <div class="mb-3">
+                        <label class="form-label">Permission Name</label>
+                        <input type="text" name="permissions_name" class="form-control" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Save</button>
+                </form>
+            `;
+            formModal.show();
+        }
+
+        function showAddHolidayModal() {
+            document.getElementById('modal-body').innerHTML = `
+                <form onsubmit="handleFormSubmit(event, '/holidays', loadHolidays)">
+                    <div class="mb-3">
+                        <label class="form-label">Holiday Date</label>
+                        <input type="date" name="holiday_date" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Holiday Name</label>
+                        <input type="text" name="holiday_name" class="form-control" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Save</button>
+                </form>
+            `;
+            formModal.show();
+        }
+
+        function showAddUserModal() {
+            const divisions = cachedData.divisions.map(d => `<option value="${d.id}">${d.divisions_name}</option>`).join('');
+            const offices = cachedData.offices.map(o => `<option value="${o.id}">${o.office_name}</option>`).join('');
+            const roles = cachedData.roles.map(r => `<option value="${r.id}">${r.roles_name}</option>`).join('');
+
+            document.getElementById('modal-body').innerHTML = `
+                <form onsubmit="handleFormSubmit(event, '/users', loadUsers)">
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" name="email" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Password</label>
+                        <input type="password" name="password" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Name</label>
+                        <input type="text" name="name" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Office</label>
+                        <select name="office_id" class="form-select">${offices}</select>
+                    </div>
+                    <div class="row mb-3">
                         <div class="col">
-                            <label class="form-label small text-muted">Start Shift</label>
-                            <input type="time" name="shift_start" class="form-control" value="${user.shift_start}">
+                            <label class="form-label">Division</label>
+                            <select name="division_id" class="form-select">${divisions}</select>
                         </div>
                         <div class="col">
-                            <label class="form-label small text-muted">End Shift</label>
-                            <input type="time" name="shift_end" class="form-control" value="${user.shift_end}">
+                            <label class="form-label">Role</label>
+                            <select name="role_id" class="form-select">${roles}</select>
                         </div>
                     </div>
-                    <button type="submit" class="btn btn-primary w-100 shadow-sm">Update User</button>
+                    <button type="submit" class="btn btn-primary w-100">Save</button>
                 </form>
             `;
             formModal.show();
         }
 
         function showAddOfficeModal() {
-            document.querySelector('#formModal .modal-dialog').classList.add('modal-lg');
-            document.querySelector('#formModal .modal-title').innerText = 'Add Office Geofence';
             document.getElementById('modal-body').innerHTML = `
-                <div class="search-container">
-                    <div class="input-group">
-                        <input type="text" id="map-search" class="form-control" placeholder="Search location (e.g. Monas, Jakarta)">
-                        <button class="btn btn-secondary" type="button" onclick="searchLocation()">
-                            <i class="bi bi-search"></i>
-                        </button>
-                    </div>
-                </div>
-                <div id="map-container"></div>
                 <form onsubmit="handleFormSubmit(event, '/offices', loadOffices)">
                     <div class="mb-3">
-                        <label class="form-label small text-muted">Location Name</label>
-                        <input type="text" name="name" class="form-control" placeholder="Main Office" required>
+                        <label class="form-label">Office Name</label>
+                        <input type="text" name="office_name" class="form-control" required>
                     </div>
-                    <div class="row g-3 mb-3">
-                        <div class="col">
-                            <label class="form-label small text-muted">Latitude</label>
-                            <input type="text" name="latitude" id="office-lat" class="form-control" placeholder="-6.1234" required>
-                        </div>
-                        <div class="col">
-                            <label class="form-label small text-muted">Longitude</label>
-                            <input type="text" name="longitude" id="office-lng" class="form-control" placeholder="106.1234" required>
-                        </div>
+                    <div class="row mb-3">
+                        <div class="col"><label class="form-label">Lat</label><input type="text" name="latitude" class="form-control" required></div>
+                        <div class="col"><label class="form-label">Long</label><input type="text" name="longitude" class="form-control" required></div>
                     </div>
-                    <div class="mb-4">
-                        <label class="form-label small text-muted">Accuracy Radius (Meters)</label>
-                        <input type="number" name="radius" class="form-control" value="100">
-                    </div>
-                    <button type="submit" class="btn btn-primary w-100 shadow-sm">Enable Geofence</button>
-                </form>
-            `;
-            formModal.show();
-
-            // Wait for modal to be shown before initializing map
-            setTimeout(initMap, 500);
-        }
-
-        function showEditOfficeModal(officeId) {
-            const office = cachedOffices.find(o => o.id === officeId);
-            if (!office) return;
-
-            document.querySelector('#formModal .modal-dialog').classList.add('modal-lg');
-            document.querySelector('#formModal .modal-title').innerText = 'Edit Office: ' + office.name;
-            document.getElementById('modal-body').innerHTML = `
-                <div class="search-container">
-                    <div class="input-group">
-                        <input type="text" id="map-search" class="form-control" placeholder="Search location...">
-                        <button class="btn btn-secondary" type="button" onclick="searchLocation()">
-                            <i class="bi bi-search"></i>
-                        </button>
-                    </div>
-                </div>
-                <div id="map-container"></div>
-                <form onsubmit="handleFormSubmit(event, '/offices/' + ${office.id}, loadOffices, 'PUT')">
                     <div class="mb-3">
-                        <label class="form-label small text-muted">Location Name</label>
-                        <input type="text" name="name" class="form-control" value="${office.name}" required>
+                        <label class="form-label">Radius (meters)</label>
+                        <input type="number" name="radius_meter" class="form-control" value="100">
                     </div>
-                    <div class="row g-3 mb-3">
-                        <div class="col">
-                            <label class="form-label small text-muted">Latitude</label>
-                            <input type="text" name="latitude" id="office-lat" class="form-control" value="${office.latitude}" required>
-                        </div>
-                        <div class="col">
-                            <label class="form-label small text-muted">Longitude</label>
-                            <input type="text" name="longitude" id="office-lng" class="form-control" value="${office.longitude}" required>
-                        </div>
+                    <div class="mb-3">
+                        <label class="form-label">Address</label>
+                        <textarea name="address" class="form-control"></textarea>
                     </div>
-                    <div class="mb-4">
-                        <label class="form-label small text-muted">Accuracy Radius (Meters)</label>
-                        <input type="number" name="radius" class="form-control" value="${office.radius}">
-                    </div>
-                    <button type="submit" class="btn btn-primary w-100 shadow-sm">Update Location</button>
+                    <button type="submit" class="btn btn-primary w-100">Save</button>
                 </form>
             `;
             formModal.show();
-            setTimeout(() => initMap(parseFloat(office.latitude), parseFloat(office.longitude)), 500);
         }
 
-        let map, marker;
-        function initMap(lat = -6.175392, lng = 106.827153) {
-            const pos = [lat, lng];
-            if (map) map.remove();
-
-            map = L.map('map-container').setView(pos, 13);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; OpenStreetMap'
-            }).addTo(map);
-
-            marker = L.marker(pos, { draggable: true }).addTo(map);
-
-            const updateFields = (lat, lng) => {
-                document.getElementById('office-lat').value = lat.toFixed(8);
-                document.getElementById('office-lng').value = lng.toFixed(8);
-            };
-
-            marker.on('dragend', () => {
-                const pos = marker.getLatLng();
-                updateFields(pos.lat, pos.lng);
-            });
-
-            map.on('click', (e) => {
-                marker.setLatLng(e.latlng);
-                updateFields(e.latlng.lat, e.latlng.lng);
-            });
-
-            // Trigger window resize to fix leaflet layout bugs in hidden containers
-            setTimeout(() => map.invalidateSize(), 100);
-        }
-
-        async function searchLocation() {
-            const query = document.getElementById('map-search').value;
-            if (!query) return;
-            try {
-                const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
-                const data = await res.json();
-                if (data.length > 0) {
-                    const pos = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
-                    map.setView(pos, 16);
-                    marker.setLatLng(pos);
-                    document.getElementById('office-lat').value = pos[0].toFixed(8);
-                    document.getElementById('office-lng').value = pos[1].toFixed(8);
-                } else {
-                    alert('Location not found');
-                }
-            } catch (err) {
-                alert('Search failed');
-            }
+        function showAddLeaveModal() {
+            document.getElementById('modal-body').innerHTML = `
+                <form onsubmit="handleFormSubmit(event, '/leaves', loadLeaves)">
+                    <div class="mb-3">
+                        <label class="form-label">User ID (Manual for now)</label>
+                        <input type="number" name="user_id" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Leave Type</label>
+                        <select name="leave_type" class="form-select">
+                            <option value="annual">Annual</option>
+                            <option value="sick">Sick</option>
+                            <option value="permission">Permission</option>
+                        </select>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col"><label class="form-label">Start Date</label><input type="date" name="start_date" class="form-control" required></div>
+                        <div class="col"><label class="form-label">End Date</label><input type="date" name="end_date" class="form-control" required></div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Reason</label>
+                        <textarea name="reason" class="form-control"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Submit Request</button>
+                </form>
+            `;
+            formModal.show();
         }
 
         async function exportData() {
@@ -983,103 +1330,231 @@
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `attendance_export_${new Date().getTime()}.xlsx`;
+                a.download = `attendance_${new Date().getTime()}.xlsx`;
                 a.click();
             }
         }
 
-        // Camera Logic
+        function showEditDivisionModal(id) {
+            const item = cachedData.divisions.find(d => d.id === id);
+            if (!item) return;
+            document.getElementById('modal-body').innerHTML = `
+                <form onsubmit="handleFormSubmit(event, '/divisions/${id}', loadDivisions, 'PUT')">
+                    <div class="mb-3">
+                        <label class="form-label">Division Name</label>
+                        <input type="text" name="divisions_name" class="form-control" value="${item.divisions_name}" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Update</button>
+                </form>
+            `;
+            formModal.show();
+        }
 
-        async function initFaceCamera() {
-            try {
-                const video = document.getElementById('face-video');
-                videoStream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: "user" }
-                });
-                video.srcObject = videoStream;
-            } catch (err) {
-                console.error("Camera error:", err);
-                alert("Please allow camera access for face verification");
+        async function showEditRoleModal(id) {
+            const item = cachedData.roles.find(r => r.id === id);
+            if (!item) return;
+
+            // Load current permissions for this role (first division found or select division)
+            // For simplicity, we'll allow selecting division and it will refresh the checkboxes
+            const divs = cachedData.divisions.map(d => `<option value="${d.id}">${d.divisions_name}</option>`).join('');
+
+            const renderPerms = (activePermIds = []) => {
+                return cachedData.permissions.map(p => `
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="permissions" value="${p.id}" id="permEdit${p.id}" ${activePermIds.includes(p.id) ? 'checked' : ''}>
+                        <label class="form-check-label" for="permEdit${p.id}">${p.permissions_name}</label>
+                    </div>
+                `).join('');
+            };
+
+            document.getElementById('modal-body').innerHTML = `
+                <form id="edit-role-form" onsubmit="handleFormSubmit(event, '/roles/${id}', loadRoles, 'PUT')">
+                    <div class="mb-3">
+                        <label class="form-label">Role Name</label>
+                        <input type="text" name="roles_name" class="form-control" value="${item.roles_name}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Division Scope</label>
+                        <select name="division_id" id="edit-role-div" class="form-select" onchange="refreshRolePermissions(${id})">${divs}</select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Permissions</label>
+                        <div id="edit-role-perms" class="border rounded p-3" style="max-height: 200px; overflow-y: auto;">
+                            ${renderPerms()}
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Update</button>
+                </form>
+            `;
+            formModal.show();
+            refreshRolePermissions(id);
+        }
+
+        async function refreshRolePermissions(roleId) {
+            const divId = document.getElementById('edit-role-div').value;
+            const res = await fetchAPI(`/roles/${roleId}/permissions`);
+            // Filtering by division from the response (since API returns all)
+            const activePermIds = res.filter(p => p.divisions_id == divId).map(p => p.id_permissions);
+
+            const permsContainer = document.getElementById('edit-role-perms');
+            permsContainer.innerHTML = cachedData.permissions.map(p => `
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="permissions" value="${p.id}" id="permEdit${p.id}" ${activePermIds.includes(p.id) ? 'checked' : ''}>
+                    <label class="form-check-label" for="permEdit${p.id}">${p.permissions_name}</label>
+                </div>
+            `).join('');
+        }
+
+        function showEditPermissionModal(id) {
+            const item = cachedData.permissions.find(p => p.id === id);
+            if (!item) return;
+            document.getElementById('modal-body').innerHTML = `
+                <form onsubmit="handleFormSubmit(event, '/permissions/${id}', loadPermissions, 'PUT')">
+                    <div class="mb-3">
+                        <label class="form-label">Permission Name</label>
+                        <input type="text" name="permissions_name" class="form-control" value="${item.permissions_name}" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Update</button>
+                </form>
+            `;
+            formModal.show();
+        }
+
+        function showEditShiftModal(id) {
+            const item = cachedData.shifts.find(s => s.id === id);
+            if (!item) return;
+            document.getElementById('modal-body').innerHTML = `
+                <form onsubmit="handleFormSubmit(event, '/shifts/${id}', loadShifts, 'PUT')">
+                    <div class="mb-3">
+                        <label class="form-label">Shift Name</label>
+                        <input type="text" name="shift_name" class="form-control" value="${item.shift_name}" required>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col"><label class="form-label">Check In</label><input type="time" name="check_in" class="form-control" value="${item.check_in}" required></div>
+                        <div class="col"><label class="form-label">Check Out</label><input type="time" name="check_out" class="form-control" value="${item.check_out}" required></div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Tolerance (min)</label>
+                        <input type="number" name="late_tolerance_minute" class="form-control" value="${item.late_tolerance_minute}">
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Update</button>
+                </form>
+            `;
+            formModal.show();
+        }
+
+        function showEditHolidayModal(id) {
+            const item = cachedData.holidays.find(h => h.id === id);
+            if (!item) return;
+            const date = new Date(item.holiday_date).toISOString().split('T')[0];
+            document.getElementById('modal-body').innerHTML = `
+                <form onsubmit="handleFormSubmit(event, '/holidays/${id}', loadHolidays, 'PUT')">
+                    <div class="mb-3">
+                        <label class="form-label">Holiday Date</label>
+                        <input type="date" name="holiday_date" class="form-control" value="${date}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Holiday Name</label>
+                        <input type="text" name="holiday_name" class="form-control" value="${item.holiday_name}" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Update</button>
+                </form>
+            `;
+            formModal.show();
+        }
+
+        function showEditUserModal(id) {
+            const item = cachedData.users.find(u => u.id === id);
+            if (!item) return;
+
+            const divisions = cachedData.divisions.map(d => `<option value="${d.id}" ${d.id === item.division_id ? 'selected' : ''}>${d.divisions_name}</option>`).join('');
+            const offices = cachedData.offices.map(o => `<option value="${o.id}" ${o.id === item.office_id ? 'selected' : ''}>${o.office_name}</option>`).join('');
+            const roles = cachedData.roles.map(r => `<option value="${r.id}" ${r.id === item.role_id ? 'selected' : ''}>${r.roles_name}</option>`).join('');
+
+            document.getElementById('modal-body').innerHTML = `
+                <form onsubmit="handleFormSubmit(event, '/users/${id}', loadUsers, 'PUT')">
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" name="email" class="form-control" value="${item.email}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Password (Leave blank to keep current)</label>
+                        <input type="password" name="password" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Name</label>
+                        <input type="text" name="name" class="form-control" value="${item.name}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Office</label>
+                        <select name="office_id" class="form-select">${offices}</select>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col">
+                            <label class="form-label">Division</label>
+                            <select name="division_id" class="form-select">${divisions}</select>
+                        </div>
+                        <div class="col">
+                            <label class="form-label">Role</label>
+                            <select name="role_id" class="form-select">${roles}</select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Status</label>
+                        <select name="is_active" class="form-select">
+                            <option value="1" ${item.is_active ? 'selected' : ''}>Active</option>
+                            <option value="0" ${!item.is_active ? 'selected' : ''}>Inactive</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Update</button>
+                </form>
+            `;
+            formModal.show();
+        }
+
+        function showEditOfficeModal(id) {
+            const item = cachedData.offices.find(o => o.id === id);
+            if (!item) return;
+            document.getElementById('modal-body').innerHTML = `
+                <form onsubmit="handleFormSubmit(event, '/offices/${id}', loadOffices, 'PUT')">
+                    <div class="mb-3">
+                        <label class="form-label">Office Name</label>
+                        <input type="text" name="office_name" class="form-control" value="${item.office_name}" required>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col"><label class="form-label">Lat</label><input type="text" name="latitude" class="form-control" value="${item.latitude}" required></div>
+                        <div class="col"><label class="form-label">Long</label><input type="text" name="longitude" class="form-control" value="${item.longitude}" required></div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Radius (meters)</label>
+                        <input type="number" name="radius_meter" class="form-control" value="${item.radius_meter}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Address</label>
+                        <textarea name="address" class="form-control">${item.address || ''}</textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Update</button>
+                </form>
+            `;
+            formModal.show();
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('active');
+            document.querySelector('.sidebar-overlay').classList.toggle('active');
+        }
+
+        // Updated switchTab to close sidebar on mobile after selection
+        const originalSwitchTab = switchTab;
+        switchTab = function (tab, el) {
+            originalSwitchTab(tab, el);
+            if (window.innerWidth <= 1024) {
+                const sidebar = document.getElementById('sidebar');
+                if (sidebar.classList.contains('active')) {
+                    toggleSidebar();
+                }
             }
-        }
-
-        function stopFaceCamera() {
-            if (videoStream) {
-                videoStream.getTracks().forEach(track => track.stop());
-                videoStream = null;
-            }
-        }
-
-        function processFaceScan() {
-            // Simulation of face analysis
-            alert("Face verified! Coordinates captured. Attendance logged.");
-            // In real app, here you would capture frame and send to backend
-        }
-
-        function toggleQRScanner() {
-            const btn = document.getElementById('qr-btn');
-            if (qrScanner) {
-                stopQRScanner();
-            } else {
-                startQRScanner();
-            }
-        }
-
-        function startQRScanner() {
-            const btn = document.getElementById('qr-btn');
-            qrScanner = new Html5Qrcode("reader");
-            qrScanner.start(
-                { facingMode: "environment" },
-                { fps: 10, qrbox: { width: 250, height: 250 } },
-                (decodedText) => {
-                    alert(`QR Code Scanned: ${decodedText}`);
-                    stopQRScanner();
-                    // Process attendance based on QR payload
-                },
-                (errorMessage) => { }
-            ).then(() => {
-                btn.innerHTML = '<i class="bi bi-stop-fill me-2"></i> Stop Scanner';
-                btn.classList.replace('btn-outline-primary', 'btn-danger');
-            }).catch(err => {
-                alert("Camera error. Please ensure permissions are granted.");
-            });
-        }
-
-        function stopQRScanner() {
-            const btn = document.getElementById('qr-btn');
-            if (qrScanner) {
-                qrScanner.stop().then(() => {
-                    qrScanner = null;
-                    btn.innerHTML = '<i class="bi bi-play-fill me-2"></i> Start QR Scanner';
-                    btn.classList.replace('btn-danger', 'btn-outline-primary');
-                });
-            }
-        }
-
-        function uploadFaceImage(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            // Preview or process
-            console.log("Face image uploaded:", file.name);
-            alert(`Photo ${file.name} uploaded successfully! Face verified.`);
-        }
-
-        function uploadQRImage(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            const html5QrCode = new Html5Qrcode("reader");
-            html5QrCode.scanFile(file, true)
-                .then(decodedText => {
-                    alert(`QR Code Scanned from file: ${decodedText}`);
-                    // Process attendance...
-                })
-                .catch(err => {
-                    alert("No QR code found in this image. Please try another one.");
-                    console.error("Scan error:", err);
-                });
-        }
+        };
 
         window.onload = () => {
             formModal = new bootstrap.Modal(document.getElementById('formModal'));

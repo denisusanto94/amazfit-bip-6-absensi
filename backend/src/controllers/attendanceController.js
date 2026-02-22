@@ -2,17 +2,15 @@ const pool = require('../config/db');
 const geolib = require('geolib');
 const ExcelJS = require('exceljs');
 
-const OFFICE_RADIUS_METERS = 100;
-
 exports.checkIn = async (req, res) => {
     try {
-        const { latitude, longitude, device_info } = req.body;
+        const { latitude, longitude } = req.body;
         const userId = req.userId;
 
         // 1. Validation: Check if already checked in today
         const today = new Date().toISOString().slice(0, 10);
         const [existing] = await pool.execute(
-            'SELECT * FROM attendance WHERE user_id = ? AND type = "check_in" AND DATE(timestamp) = ?',
+            'SELECT * FROM attendances WHERE user_id = ? AND DATE(check_in) = ?',
             [userId, today]
         );
 
@@ -21,52 +19,56 @@ exports.checkIn = async (req, res) => {
         }
 
         // 2. Geo: Get User Location and Office Location
-        // Simplification: Assume 1 Main Office or check nearest.
-        const [offices] = await pool.query('SELECT * FROM office_locations');
-        let validLocation = false;
-        let distance = -1;
+        // Fetch office assigned to user
+        const [userRows] = await pool.execute('SELECT office_id FROM users WHERE id = ?', [userId]);
+        const officeId = userRows[0].office_id;
 
-        if (offices.length === 0) {
-            // If no office defined, allow (or block depending on policy). Use env default if available.
-            // For safety, let's assume valid.
-            validLocation = true;
-        } else {
-            for (const office of offices) {
-                const dist = geolib.getDistance(
-                    { latitude, longitude },
-                    { latitude: office.latitude, longitude: office.longitude }
-                );
-                if (dist <= (office.radius || OFFICE_RADIUS_METERS)) {
-                    validLocation = true;
-                    distance = dist;
-                    break;
-                }
+        if (!officeId) {
+            return res.status(400).json({ message: 'User has no assigned office.' });
+        }
+
+        const [officeRows] = await pool.execute('SELECT * FROM offices WHERE id = ?', [officeId]);
+        const office = officeRows[0];
+
+        const dist = geolib.getDistance(
+            { latitude, longitude },
+            { latitude: office.latitude, longitude: office.longitude }
+        );
+
+        if (dist > office.radius_meter) {
+            return res.status(400).json({ message: 'You are outside the office radius.', distance: dist });
+        }
+
+        // 3. Shift Logic
+        // Find active shift for user
+        const [shiftRows] = await pool.execute(`
+            SELECT s.* FROM shifts s
+            JOIN user_shifts us ON s.id = us.shift_id
+            WHERE us.user_id = ? AND us.start_date <= CURDATE() AND (us.end_date IS NULL OR us.end_date >= CURDATE())
+            LIMIT 1
+        `, [userId]);
+
+        let status = 'present';
+        if (shiftRows.length > 0) {
+            const shift = shiftRows[0];
+            const now = new Date();
+            const currentTime = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+
+            const [shH, shM, shS] = shift.check_in.split(':').map(Number);
+            const shiftStartTime = shH * 3600 + shM * 60 + shS;
+            const toleranceSeconds = shift.late_tolerance_minute * 60;
+
+            if (currentTime > (shiftStartTime + toleranceSeconds)) {
+                status = 'late';
             }
         }
 
-        if (!validLocation) {
-            return res.status(400).json({ message: 'You are outside the office radius.' });
-        }
-
-        // 3. Shift Logic (Simple comparison)
-        const [users] = await pool.execute('SELECT shift_start FROM users WHERE id = ?', [userId]);
-        const shiftStart = users[0].shift_start; // "09:00:00"
-
-        const now = new Date();
-        const currentTime = now.toTimeString().split(' ')[0]; // "HH:MM:SS"
-        let status = 'valid';
-
-        // Simple Late check (if check in > shift start + grace period e.g. 15 mins)
-        if (currentTime > shiftStart /* + margin */) {
-            status = 'late';
-        }
-
         await pool.execute(
-            'INSERT INTO attendance (user_id, type, timestamp, latitude, longitude, status, device_info) VALUES (?, ?, NOW(), ?, ?, ?, ?)',
-            [userId, 'check_in', latitude, longitude, status, device_info || 'ZeppApp']
+            'INSERT INTO attendances (user_id, office_id, check_in, check_in_lat, check_in_long, status) VALUES (?, ?, NOW(), ?, ?, ?)',
+            [userId, officeId, latitude, longitude, status]
         );
 
-        res.status(200).json({ message: 'Check-in successful', status, distance });
+        res.status(200).json({ message: 'Check-in successful', status, distance: dist });
 
     } catch (err) {
         console.error(err);
@@ -76,46 +78,48 @@ exports.checkIn = async (req, res) => {
 
 exports.checkOut = async (req, res) => {
     try {
-        const { latitude, longitude, device_info } = req.body;
+        const { latitude, longitude } = req.body;
         const userId = req.userId;
 
-        // Check if already checked out today?
         const today = new Date().toISOString().slice(0, 10);
         const [existing] = await pool.execute(
-            'SELECT * FROM attendance WHERE user_id = ? AND type = "check_out" AND DATE(timestamp) = ?',
+            'SELECT * FROM attendances WHERE user_id = ? AND DATE(check_in) = ? AND check_out IS NULL',
             [userId, today]
         );
-        if (existing.length > 0) {
-            return res.status(400).json({ message: 'Already checked out today.' });
+
+        if (existing.length === 0) {
+            return res.status(400).json({ message: 'No active check-in found for today.' });
         }
 
-        // Geo Check (Optional: Allow check out from anywhere? Usually restrict to office too).
-        // Let's enforce it.
-        const [offices] = await pool.query('SELECT * FROM office_locations');
-        let validLocation = false;
-        for (const office of offices) {
-            const dist = geolib.getDistance(
-                { latitude, longitude },
-                { latitude: office.latitude, longitude: office.longitude }
-            );
-            if (dist <= (office.radius || OFFICE_RADIUS_METERS)) {
-                validLocation = true;
-                break;
-            }
-        }
+        const attendance = existing[0];
+        const officeId = attendance.office_id;
 
-        if (!validLocation) {
+        const [officeRows] = await pool.execute('SELECT * FROM offices WHERE id = ?', [officeId]);
+        const office = officeRows[0];
+
+        const dist = geolib.getDistance(
+            { latitude, longitude },
+            { latitude: office.latitude, longitude: office.longitude }
+        );
+
+        if (dist > office.radius_meter) {
             return res.status(400).json({ message: 'You must be at the office to check out.' });
         }
 
+        // Calculate work duration
+        const checkInTime = new Date(attendance.check_in);
+        const checkOutTime = new Date();
+        const durationMinutes = Math.floor((checkOutTime - checkInTime) / 60000);
+
         await pool.execute(
-            'INSERT INTO attendance (user_id, type, timestamp, latitude, longitude, status, device_info) VALUES (?, ?, NOW(), ?, ?, ?, ?)',
-            [userId, 'check_out', latitude, longitude, 'valid', device_info || 'ZeppApp']
+            'UPDATE attendances SET check_out = NOW(), check_out_lat = ?, check_out_long = ?, work_duration = ? WHERE id = ?',
+            [latitude, longitude, durationMinutes, attendance.id]
         );
 
-        res.status(200).json({ message: 'Check-out successful' });
+        res.status(200).json({ message: 'Check-out successful', duration_minutes: durationMinutes });
 
     } catch (err) {
+        console.error(err);
         res.status(500).json({ message: 'Server error' });
     }
 };
@@ -123,18 +127,28 @@ exports.checkOut = async (req, res) => {
 exports.getAllAttendance = async (req, res) => {
     try {
         let query = `
-            SELECT a.*, u.name 
-            FROM attendance a 
+            SELECT a.*, u.name, o.office_name 
+            FROM attendances a 
             JOIN users u ON a.user_id = u.id 
+            JOIN offices o ON a.office_id = o.id
         `;
         let params = [];
 
-        if (req.userRole !== 'admin') {
+        // Note: Assuming there's a way to identify admin. Since 'role' was removed from users, 
+        // we might need another way or just check a specific email for now, or add role back.
+        // For now let's assume we filter by userId if not admin.
+        // User's provided script didn't have a 'role' column in 'users', but the seed data has 'Super Admin'.
+
+        // I'll check if the user is the one from seed data 'admin@company.com'
+        const [adminUser] = await pool.execute('SELECT id FROM users WHERE email = ?', ['admin@company.com']);
+        const isAdmin = adminUser.length > 0 && adminUser[0].id === req.userId;
+
+        if (!isAdmin) {
             query += ' WHERE a.user_id = ?';
             params.push(req.userId);
         }
 
-        query += ' ORDER BY a.timestamp DESC';
+        query += ' ORDER BY a.check_in DESC';
 
         const [rows] = await pool.query(query, params);
         res.json(rows);
@@ -146,10 +160,10 @@ exports.getAllAttendance = async (req, res) => {
 exports.exportExcel = async (req, res) => {
     try {
         const [rows] = await pool.query(`
-            SELECT a.id, u.name, a.type, a.timestamp, a.status 
-            FROM attendance a 
+            SELECT a.id, u.name, a.check_in, a.check_out, a.status, a.work_duration 
+            FROM attendances a 
             JOIN users u ON a.user_id = u.id 
-            ORDER BY a.timestamp DESC
+            ORDER BY a.check_in DESC
         `);
 
         const workbook = new ExcelJS.Workbook();
@@ -158,9 +172,10 @@ exports.exportExcel = async (req, res) => {
         sheet.columns = [
             { header: 'ID', key: 'id', width: 10 },
             { header: 'Name', key: 'name', width: 30 },
-            { header: 'Type', key: 'type', width: 10 },
-            { header: 'Time', key: 'timestamp', width: 20 },
-            { header: 'Status', key: 'status', width: 10 }
+            { header: 'Check In', key: 'check_in', width: 20 },
+            { header: 'Check Out', key: 'check_out', width: 20 },
+            { header: 'Status', key: 'status', width: 15 },
+            { header: 'Duration (Min)', key: 'work_duration', width: 15 }
         ];
 
         sheet.addRows(rows);

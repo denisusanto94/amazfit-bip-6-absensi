@@ -1,21 +1,33 @@
 const pool = require('../config/db');
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
+const argon2 = require('argon2');
 
 exports.login = async (req, res) => {
-    const { username, password } = req.body;
+    const { email, password } = req.body;
 
     try {
-        const [rows] = await pool.execute('SELECT * FROM users WHERE username = ?', [username]);
+        const [rows] = await pool.execute(`
+            SELECT u.*, r.roles_name as role 
+            FROM users u
+            LEFT JOIN users_has_roles uhr ON u.id = uhr.id_users
+            LEFT JOIN roles r ON uhr.id_roles = r.id
+            WHERE u.email = ?
+        `, [email]);
+
         if (rows.length === 0) {
-            console.log(`Login failed: User not found (${username})`);
+            console.log(`Login failed: User not found (${email})`);
             return res.status(404).json({ message: 'User not found' });
         }
 
         const user = rows[0];
-        const passwordIsValid = bcrypt.compareSync(password, user.password);
+
+        if (!user.is_active) {
+            return res.status(401).json({ message: 'Account is inactive' });
+        }
+
+        const passwordIsValid = await argon2.verify(user.password, password);
         if (!passwordIsValid) {
-            console.log(`Login failed: Invalid password for user ${username}`);
+            console.log(`Login failed: Invalid password for user ${email}`);
             return res.status(401).json({ auth: false, token: null, message: 'Invalid Password' });
         }
 
@@ -23,8 +35,19 @@ exports.login = async (req, res) => {
             expiresIn: 86400 // 24 hours
         });
 
-        console.log(`Login success: ${username} (Role: ${user.role})`);
-        res.status(200).json({ auth: true, token: token, user: { name: user.name, role: user.role } });
+        // Update last login
+        await pool.execute('UPDATE users SET last_login = NOW() WHERE id = ?', [user.id]);
+
+        console.log(`Login success: ${email}`);
+        res.status(200).json({
+            auth: true,
+            token: token,
+            user: {
+                name: user.name,
+                email: user.email,
+                role: user.role
+            }
+        });
     } catch (err) {
         console.error('Login error:', err);
         res.status(500).json({ message: 'Server error' });
@@ -32,11 +55,11 @@ exports.login = async (req, res) => {
 };
 
 exports.register = async (req, res) => {
-    const { username, password, name, role, shift_start, shift_end } = req.body;
-    const hashedPassword = bcrypt.hashSync(password, 8);
+    const { email, password, name, division_id, office_id } = req.body;
     try {
-        await pool.execute('INSERT INTO users (username, password, name, role, shift_start, shift_end) VALUES (?, ?, ?, ?, ?, ?)',
-            [username, hashedPassword, name, role || 'employee', shift_start, shift_end]);
+        const hashedPassword = await argon2.hash(password);
+        await pool.execute('INSERT INTO users (email, password, name, division_id, office_id) VALUES (?, ?, ?, ?, ?)',
+            [email, hashedPassword, name, division_id, office_id]);
         res.status(201).json({ message: 'User registered successfully!' });
     } catch (err) {
         res.status(500).json({ message: err.message });
