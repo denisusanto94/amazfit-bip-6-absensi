@@ -1,6 +1,7 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
+const os = require('os');
 require('dotenv').config();
 
 const authRoutes = require('./routes/authRoutes');
@@ -33,7 +34,30 @@ app.use('/api/leaves', leaveRoutes);
 app.use('/api/roles', roleRoutes);
 app.use('/api/permissions', permissionRoutes);
 
+// Helper to get the local network IP address
+function getLocalIP() {
+    const interfaces = os.networkInterfaces();
+    for (const name of Object.keys(interfaces)) {
+        for (const iface of interfaces[name]) {
+            // Skip internal (loopback) and non-IPv4 addresses
+            if (iface.family === 'IPv4' && !iface.internal) {
+                return iface.address;
+            }
+        }
+    }
+    return 'localhost';
+}
+
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+const HOST = '0.0.0.0'; // Listen on all network interfaces
+
+app.listen(PORT, HOST, () => {
+    const localIP = getLocalIP();
+    console.log(`\n===========================================`);
+    console.log(`  Server running on port ${PORT}`);
+    console.log(`  Local:   http://localhost:${PORT}`);
+    console.log(`  Network: http://${localIP}:${PORT}`);
+    console.log(`\n  Use the Network URL in React Native:`);
+    console.log(`  e.g. const API_URL = 'http://${localIP}:${PORT}/api'`);
+    console.log(`===========================================\n`);
 });
