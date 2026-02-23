@@ -958,6 +958,27 @@
         </div>
     </div>
 
+    <!-- Confirmation Modal for Leave Approval/Rejection -->
+    <div class="modal fade" id="confirmLeaveModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title w-100 text-center" style="font-weight: 700" id="confirmLeaveTitle">Konfirmasi
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-center py-4">
+                    <div id="confirmLeaveIcon" style="font-size: 3rem; margin-bottom: 12px;"></div>
+                    <p id="confirmLeaveMessage" class="mb-0" style="font-size: 1rem; color: #475569;"></p>
+                </div>
+                <div class="modal-footer border-0 justify-content-center pt-0">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button>
+                    <button type="button" class="btn" id="confirmLeaveBtn" onclick="executeLeaveAction()">Ya</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Leaflet Maps JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -981,6 +1002,24 @@
             try {
                 const token = localStorage.getItem('token');
                 if (token) {
+                    // Fetch fresh user profile & permissions from API
+                    try {
+                        const meRes = await fetch(`${API_URL}/auth/me`, {
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
+                        if (meRes.status === 401 || meRes.status === 500) {
+                            logout();
+                            return;
+                        }
+                        if (meRes.ok) {
+                            const meData = await meRes.json();
+                            localStorage.setItem('userRole', meData.role || '');
+                            localStorage.setItem('userPermissions', JSON.stringify(meData.permissions || []));
+                        }
+                    } catch (e) {
+                        console.error('Failed to fetch user profile:', e);
+                    }
+
                     document.getElementById('login-section').classList.add('hidden');
                     document.getElementById('main-section').classList.remove('hidden');
 
@@ -1024,6 +1063,7 @@
                 if (res.ok && data.token) {
                     localStorage.setItem('token', data.token);
                     localStorage.setItem('userRole', data.user.role || '');
+                    localStorage.setItem('userPermissions', JSON.stringify(data.user.permissions || []));
                     location.reload();
                 } else {
                     errorEl.innerText = data.message || 'Unauthorized access';
@@ -1037,7 +1077,29 @@
         function logout() {
             localStorage.removeItem('token');
             localStorage.removeItem('userRole');
+            localStorage.removeItem('userPermissions');
             location.reload();
+        }
+
+        function hasApproveLeavePermission() {
+            const userRole = localStorage.getItem('userRole');
+            if (userRole === 'super_admin') return true;
+            try {
+                const perms = JSON.parse(localStorage.getItem('userPermissions') || '[]');
+                const approvePerms = [
+                    'manage_approve_leaves_staf',
+                    'manage_approve_leaves_supervisor',
+                    'manage_approve_leaves_manager',
+                    'manage_approve_leaves_co_ceo',
+                    'manage_approve_leaves_ceo',
+                    'manage_approve_leaves_co_cto',
+                    'manage_approve_leaves_cto',
+                    'manage_approve_leaves_owners'
+                ];
+                return perms.some(p => approvePerms.includes(p));
+            } catch (e) {
+                return false;
+            }
         }
 
         function switchTab(tab, el) {
@@ -1476,9 +1538,9 @@
                     <td>${row.reason || '-'}</td>
                     <td><span class="badge ${row.status === 'approved' ? 'bg-success' : (row.status === 'rejected' ? 'bg-danger' : 'bg-warning')}">${row.status.toUpperCase()}</span></td>
                     <td class="text-end">
-                        ${row.status === 'pending' ? `
-                            <button class="btn btn-sm btn-success me-1" onclick="updateLeaveStatus(${row.id}, 'approved')"><i class="bi bi-check-lg"></i></button>
-                            <button class="btn btn-sm btn-danger me-1" onclick="updateLeaveStatus(${row.id}, 'rejected')"><i class="bi bi-x-lg"></i></button>
+                        ${(row.status === 'pending' && hasApproveLeavePermission()) ? `
+                            <button class="btn btn-sm btn-success me-1" onclick="confirmLeaveAction(${row.id}, 'approved')"><i class="bi bi-check-lg"></i></button>
+                            <button class="btn btn-sm btn-danger me-1" onclick="confirmLeaveAction(${row.id}, 'rejected')"><i class="bi bi-x-lg"></i></button>
                         ` : ''}
                         <button class="btn btn-sm btn-light text-danger" onclick="deleteItem('leaves', ${row.id}, loadLeaves)"><i class="bi bi-trash"></i></button>
                     </td>
@@ -1487,14 +1549,36 @@
             });
         }
 
-        async function updateLeaveStatus(id, status) {
+        let pendingLeaveAction = { id: null, status: null };
+
+        function confirmLeaveAction(id, status) {
+            pendingLeaveAction = { id, status };
+            const isApprove = status === 'approved';
+            document.getElementById('confirmLeaveTitle').textContent = isApprove ? 'Approve Cuti' : 'Tolak Cuti';
+            document.getElementById('confirmLeaveIcon').innerHTML = isApprove
+                ? '<i class="bi bi-check-circle-fill" style="color: #22c55e;"></i>'
+                : '<i class="bi bi-x-circle-fill" style="color: #ef4444;"></i>';
+            document.getElementById('confirmLeaveMessage').textContent = isApprove
+                ? 'Apakah Anda yakin ingin menyetujui cuti ini?'
+                : 'Apakah Anda yakin ingin menolak cuti ini?';
+            const confirmBtn = document.getElementById('confirmLeaveBtn');
+            confirmBtn.className = isApprove ? 'btn btn-success' : 'btn btn-danger';
+            confirmBtn.textContent = isApprove ? 'Ya, Setujui' : 'Ya, Tolak';
+            new bootstrap.Modal(document.getElementById('confirmLeaveModal')).show();
+        }
+
+        async function executeLeaveAction() {
+            const { id, status } = pendingLeaveAction;
+            if (!id) return;
             const token = localStorage.getItem('token');
             const res = await fetch(`${API_URL}/leaves/${id}/status`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({ status })
             });
+            bootstrap.Modal.getInstance(document.getElementById('confirmLeaveModal')).hide();
             if (res.ok) loadLeaves();
+            pendingLeaveAction = { id: null, status: null };
         }
 
         async function deleteItem(type, id, callback) {

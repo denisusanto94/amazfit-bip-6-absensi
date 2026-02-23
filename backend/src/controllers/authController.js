@@ -31,6 +31,22 @@ exports.login = async (req, res) => {
             return res.status(401).json({ auth: false, token: null, message: 'Invalid Password' });
         }
 
+        // Fetch user permissions
+        let permissions = [];
+        if (user.role === 'super_admin') {
+            const [allPerms] = await pool.query('SELECT permissions_name FROM permissions');
+            permissions = allPerms.map(p => p.permissions_name);
+        } else {
+            const [permRows] = await pool.execute(`
+                SELECT DISTINCT p.permissions_name
+                FROM users_has_roles uhr
+                JOIN roles_has_permission rhp ON uhr.id_roles = rhp.id_roles
+                JOIN permissions p ON rhp.id_permissions = p.id
+                WHERE uhr.id_users = ?
+            `, [user.id]);
+            permissions = permRows.map(p => p.permissions_name);
+        }
+
         const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, {
             expiresIn: 86400 // 24 hours
         });
@@ -45,7 +61,8 @@ exports.login = async (req, res) => {
             user: {
                 name: user.name,
                 email: user.email,
-                role: user.role
+                role: user.role,
+                permissions: permissions
             }
         });
     } catch (err) {
@@ -92,6 +109,49 @@ exports.register = async (req, res) => {
         await pool.execute('INSERT INTO users (email, password, name, division_id, office_id) VALUES (?, ?, ?, ?, ?)',
             [email, hashedPassword, name, division_id, office_id]);
         res.status(201).json({ message: 'User registered successfully!' });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+}
+
+exports.me = async (req, res) => {
+    try {
+        const [rows] = await pool.execute(`
+            SELECT u.id, u.name, u.email, r.roles_name as role
+            FROM users u
+            LEFT JOIN users_has_roles uhr ON u.id = uhr.id_users
+            LEFT JOIN roles r ON uhr.id_roles = r.id
+            WHERE u.id = ?
+        `, [req.userId]);
+
+        if (rows.length === 0) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        const user = rows[0];
+
+        // Fetch user permissions
+        let permissions = [];
+        if (user.role === 'super_admin') {
+            const [allPerms] = await pool.query('SELECT permissions_name FROM permissions');
+            permissions = allPerms.map(p => p.permissions_name);
+        } else {
+            const [permRows] = await pool.execute(`
+                SELECT DISTINCT p.permissions_name
+                FROM users_has_roles uhr
+                JOIN roles_has_permission rhp ON uhr.id_roles = rhp.id_roles
+                JOIN permissions p ON rhp.id_permissions = p.id
+                WHERE uhr.id_users = ?
+            `, [user.id]);
+            permissions = permRows.map(p => p.permissions_name);
+        }
+
+        res.json({
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            permissions: permissions
+        });
     } catch (err) {
         res.status(500).json({ message: err.message });
     }

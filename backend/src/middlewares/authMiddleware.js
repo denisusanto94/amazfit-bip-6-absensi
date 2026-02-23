@@ -47,4 +47,32 @@ const hasPermission = (permission) => {
     };
 };
 
-module.exports = { verifyToken, isAdmin, hasPermission };
+const hasAnyPermission = (permissions) => {
+    return async (req, res, next) => {
+        // super_admin always has all permissions
+        if (req.userRole === 'super_admin') {
+            return next();
+        }
+
+        try {
+            const placeholders = permissions.map(() => '?').join(', ');
+            const [rows] = await pool.execute(`
+                SELECT p.permissions_name 
+                FROM roles_has_permission rhp
+                JOIN permissions p ON rhp.id_permissions = p.id
+                JOIN users_has_roles uhr ON rhp.id_roles = uhr.id_roles
+                WHERE uhr.id_users = ? AND p.permissions_name IN (${placeholders})
+            `, [req.userId, ...permissions]);
+
+            if (rows.length > 0) {
+                next();
+            } else {
+                res.status(403).json({ message: 'Access denied. Required permission not found.' });
+            }
+        } catch (err) {
+            res.status(500).json({ message: err.message });
+        }
+    };
+};
+
+module.exports = { verifyToken, isAdmin, hasPermission, hasAnyPermission };

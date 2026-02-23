@@ -6,5 +6,6 @@ const { verifyToken, isAdmin } = require('../middlewares/authMiddleware');
 router.post('/login', authController.login);
 router.post('/login_user', authController.loginUser);
 router.post('/register', verifyToken, isAdmin, authController.register); // Admin only
+router.get('/me', verifyToken, authController.me);
 
 module.exports = router;
