@@ -1,5 +1,9 @@
 const pool = require('../config/db');
 
+// ENUM allowed values
+const VALID_TYPE_TRANSUM = ['LRT', 'LRT Jakarta', 'MRT', 'Transjakarta', 'Jaklingko'];
+const VALID_CITY = ['Jakarta Pusat', 'Jakarta Timur', 'Jakarta Utara', 'Jakarta Barat', 'Jakarta Selatan', 'Bekasi', 'Tangerang Selatan', 'Tangerang', 'Depok', 'Bogor'];
+
 // Get all attendances_transum
 exports.getAll = async (req, res) => {
     try {
@@ -41,6 +45,14 @@ exports.create = async (req, res) => {
         type_transum, city
     } = req.body;
 
+    // Validate ENUM values
+    if (!VALID_TYPE_TRANSUM.includes(type_transum)) {
+        return res.status(400).json({ message: `Invalid type_transum. Allowed values: ${VALID_TYPE_TRANSUM.join(', ')}` });
+    }
+    if (!VALID_CITY.includes(city)) {
+        return res.status(400).json({ message: `Invalid city. Allowed values: ${VALID_CITY.join(', ')}` });
+    }
+
     try {
         const [result] = await pool.execute(`
             INSERT INTO attendances_transum 
@@ -69,6 +81,14 @@ exports.update = async (req, res) => {
         check_out, check_out_lat, check_out_long, check_out_photo,
         type_transum, city
     } = req.body;
+
+    // Validate ENUM values
+    if (!VALID_TYPE_TRANSUM.includes(type_transum)) {
+        return res.status(400).json({ message: `Invalid type_transum. Allowed values: ${VALID_TYPE_TRANSUM.join(', ')}` });
+    }
+    if (!VALID_CITY.includes(city)) {
+        return res.status(400).json({ message: `Invalid city. Allowed values: ${VALID_CITY.join(', ')}` });
+    }
 
     try {
         await pool.execute(`
@@ -100,4 +120,12 @@ exports.remove = async (req, res) => {
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
+};
+
+// Get valid ENUM options for type_transum and city
+exports.getOptions = (req, res) => {
+    res.json({
+        type_transum: VALID_TYPE_TRANSUM,
+        city: VALID_CITY
+    });
 };
