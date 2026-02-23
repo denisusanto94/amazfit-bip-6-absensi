@@ -1,1 +1,1 @@
-$argon2id$v=19$m=65536,t=3,p=4$aKmtnPx5tghdtrMuNWDePQ$aBlQtMo+wdtvA6DxVK1gEaWnKN4iSJGOMWosTTmYoyI
+$2a$10$bp9wAit9uiOGKOvwmy..bO8uvvyYBQvt/WuxSxcbUC.gwAhwPO/5q
