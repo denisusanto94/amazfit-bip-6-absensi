@@ -20,6 +20,25 @@ Digunakan untuk login ke sistem dashboard admin (mengembalikan token dashboard).
   }
   ```
 - **Response**: Mengembalikan token JWT dan data user.
+- **Success Response (200)**:
+  ```json
+  {
+    "auth": true,
+    "token": "eyJhbGciOiJIUzI1NiIs...",
+    "user": {
+      "name": "Admin",
+      "email": "admin@company.com",
+      "role": "super_admin",
+      "permissions": [
+        "manage_attendance",
+        "manage_leaves_permits",
+        "manage_approve_leaves_staf",
+        "manage_approve_leaves_supervisor",
+        "..."
+      ]
+    }
+  }
+  ```
 
 ### Login User (Mobile)
 Endpoint khusus dengan format response yang ringan untuk perangkat mobile.
@@ -39,6 +58,25 @@ Endpoint khusus dengan format response yang ringan untuk perangkat mobile.
     "email": "deni@gmail.com",
     "roles": "staf",
     "divisi": "general_office"
+  }
+  ```
+
+### Get Current User Profile & Permissions
+Mendapatkan profil dan daftar permissions user yang sedang login berdasarkan token JWT.
+- **URL**: `/auth/me`
+- **Method**: `GET`
+- **Headers**: `Authorization: Bearer <token>`
+- **Success Response (200)**:
+  ```json
+  {
+    "name": "Deni",
+    "email": "deni@gmail.com",
+    "role": "staf",
+    "permissions": [
+      "manage_attendance",
+      "manage_leaves_permits",
+      "manage_approve_leaves_staf"
+    ]
   }
   ```
 
@@ -106,10 +144,28 @@ Mengirimkan data presensi lengkap (Check-in & Check-out) sekaligus (Berguna untu
 
 ## 4. Leaves / Perks (Izin & Cuti)
 
-### Get My Leaves
+### Get All Leaves
 - **URL**: `/leaves`
 - **Method**: `GET`
 - **Headers**: `Authorization: Bearer <token>`
+- **Success Response (200)**:
+  ```json
+  [
+    {
+      "id": 1,
+      "user_id": 2,
+      "user_name": "Deni",
+      "leave_type": "sick",
+      "start_date": "2026-02-23",
+      "end_date": "2026-02-24",
+      "reason": "Sakit demam",
+      "status": "pending",
+      "approved_by": null,
+      "approved_by_name": null,
+      "created_at": "2026-02-23T03:00:00.000Z"
+    }
+  ]
+  ```
 
 ### Create Leave Request
 - **URL**: `/leaves`
@@ -125,6 +181,46 @@ Mengirimkan data presensi lengkap (Check-in & Check-out) sekaligus (Berguna untu
     "reason": "Sakit demam"
   }
   ```
+
+### Update Leave Status (Approve / Reject)
+Menyetujui atau menolak permintaan cuti. Hanya user yang memiliki salah satu permission berikut yang diizinkan:
+- `manage_approve_leaves_staf`
+- `manage_approve_leaves_supervisor`
+- `manage_approve_leaves_manager`
+- `manage_approve_leaves_co_ceo`
+- `manage_approve_leaves_ceo`
+- `manage_approve_leaves_co_cto`
+- `manage_approve_leaves_cto`
+- `manage_approve_leaves_owners`
+
+- **URL**: `/leaves/:id/status`
+- **Method**: `PUT`
+- **Headers**: `Authorization: Bearer <token>`
+- **Request Body**:
+  ```json
+  {
+    "status": "approved"
+  }
+  ```
+  Nilai `status` yang valid: `approved`, `rejected`
+- **Success Response (200)**:
+  ```json
+  {
+    "message": "Leave approved"
+  }
+  ```
+- **Error Response (403)** — Jika user tidak memiliki permission:
+  ```json
+  {
+    "message": "Access denied. Required permission not found."
+  }
+  ```
+
+### Delete Leave
+Menghapus data cuti (hanya Admin).
+- **URL**: `/leaves/:id`
+- **Method**: `DELETE`
+- **Headers**: `Authorization: Bearer <token>`
 
 ---
 
